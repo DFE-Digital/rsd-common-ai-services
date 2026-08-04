@@ -52,6 +52,18 @@ variable "search_service_partition_count" {
   default     = 1
 }
 
+
+variable "private_endpoint_targets" {
+  description = "VNets in which to create a Search Service private endpoint."
+  type = map(object({
+    vnet_name                = string
+    vnet_resource_group_name = string
+    existing_subnet_name     = optional(string, "")
+    subnet_address_prefix    = optional(string, "")
+  }))
+  default = {}
+}
+
 variable "tags" {
   description = "Tags to be applied to all resources"
   type        = map(string)
