@@ -52,6 +52,11 @@ variable "search_service_partition_count" {
   default     = 1
 }
 
+variable "search_allow_both_api_and_rbac" {
+  description = "Allow the use of both API keys and RBAC authentication"
+  type        = bool
+  default     = true
+}
 
 variable "private_endpoint_targets" {
   description = "VNets in which to create a Search Service private endpoint."

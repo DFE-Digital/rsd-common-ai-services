@@ -7,6 +7,9 @@ resource "azurerm_search_service" "search" {
   replica_count   = local.search_service_replica_count
   partition_count = local.search_service_partition_count
 
+  local_authentication_enabled = local.search_allow_both_api_and_rbac
+  authentication_failure_mode  = local.search_allow_both_api_and_rbac ? "http401WithBearerChallenge" : null
+
   identity {
     type = "SystemAssigned"
   }

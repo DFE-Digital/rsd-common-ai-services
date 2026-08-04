@@ -162,6 +162,7 @@ No modules.
 | <a name="input_environment"></a> [environment](#input\_environment) | Environment name. Will be used along with `project_name` as a prefix for all resources. | `string` | n/a | yes |
 | <a name="input_private_endpoint_targets"></a> [private\_endpoint\_targets](#input\_private\_endpoint\_targets) | VNets in which to create a Search Service private endpoint. | <pre>map(object({<br/>    vnet_name                = string<br/>    vnet_resource_group_name = string<br/>    existing_subnet_name     = optional(string, "")<br/>    subnet_address_prefix    = optional(string, "")<br/>  }))</pre> | `{}` | no |
 | <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Project name. Will be used along with `environment` as a prefix for all resources. | `string` | n/a | yes |
+| <a name="input_search_allow_both_api_and_rbac"></a> [search\_allow\_both\_api\_and\_rbac](#input\_search\_allow\_both\_api\_and\_rbac) | Allow the use of both API keys and RBAC authentication | `bool` | `true` | no |
 | <a name="input_search_service_partition_count"></a> [search\_service\_partition\_count](#input\_search\_service\_partition\_count) | Search Service partition count | `number` | `1` | no |
 | <a name="input_search_service_replica_count"></a> [search\_service\_replica\_count](#input\_search\_service\_replica\_count) | Search Service replica count | `number` | `1` | no |
 | <a name="input_search_service_sku"></a> [search\_service\_sku](#input\_search\_service\_sku) | Search Service SKU | `string` | `"basic"` | no |
