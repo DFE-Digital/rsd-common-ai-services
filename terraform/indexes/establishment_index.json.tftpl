@@ -1,0 +1,230 @@
+{
+  "name": "establishment_index",
+  "fields": [
+    {
+      "name": "establishment_urn",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": false,
+      "key": true,
+      "synonymMaps": []
+    },
+    {
+      "name": "establishment_name",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "local_authority_name",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "associated_trust_name",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "establishment_type",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "phase_of_education",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "establishment_age_range",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "school_capacity",
+      "type": "Edm.Int32",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "number_on_roll",
+      "type": "Edm.Int32",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "percentage_seats_occupied",
+      "type": "Edm.Double",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "financial_deficit",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "linked_to_diocese",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "mp_name",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "mp_political_party",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "establishment_address",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "establishment_website",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "search_text",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
+      "name": "search_vector",
+      "type": "Collection(Edm.Single)",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "synonymMaps": [],
+      "dimensions": 1536,
+      "vectorSearchProfile": "${vector_profile_name}"
+    }
+  ],
+  "semantic": {
+    "titleField": "establishment_name",
+    "contentFields": [
+      "establishment_address",
+      "local_authority_name"
+    ]
+  }
+}
