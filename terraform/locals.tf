@@ -3,6 +3,7 @@ locals {
   project_name    = var.project_name
   resource_prefix = "${local.environment}${local.project_name}"
   azure_location  = var.azure_location
+  tfvars_filename = var.tfvars_filename
   tags            = var.tags
 
   search_service_sku             = var.search_service_sku
@@ -18,4 +19,7 @@ locals {
     {
       for key, target in local.private_endpoint_targets : key => azurerm_subnet.search_private_endpoint[key] if target["existing_subnet_name"] == "" && target["subnet_address_prefix"] != ""
   })
+
+  is_windows = can(regex("^[A-Za-z]:", abspath(path.root)))
+  bash       = local.is_windows ? "C:/Program Files/Git/bin/bash.exe" : "/bin/bash"
 }
