@@ -34,6 +34,11 @@ variable "azure_location" {
   type        = string
 }
 
+variable "tfvars_filename" {
+  description = "tfvars filename. This file is uploaded and stored within a Storage Account, to ensure that the latest tfvars are stored in a shared place."
+  type        = string
+}
+
 variable "search_service_sku" {
   description = "Search Service SKU"
   type        = string
