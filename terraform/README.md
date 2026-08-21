@@ -183,5 +183,5 @@ No modules.
 
 ## Outputs
 
-No outputs.
+No outputs available
 <!-- END_TF_DOCS -->
