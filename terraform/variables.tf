@@ -78,3 +78,19 @@ variable "tags" {
   description = "Tags to be applied to all resources"
   type        = map(string)
 }
+
+variable "vectorizer_api_url" {
+  description = "Custom vectorizer Web API URL."
+  type        = string
+
+  validation {
+    condition     = can(regex("^https://", var.vectorizer_api_url))
+    error_message = "vectorizer_api_url must use HTTPS."
+  }
+}
+
+variable "vectorizer_api_key" {
+  description = "Custom vectorizer API key."
+  type        = string
+  sensitive   = true
+}
