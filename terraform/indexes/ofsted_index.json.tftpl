@@ -1,5 +1,5 @@
 {
-  "name": "recast_concerns_index",
+  "name": "ofsted_index",
   "fields": [
     {
       "name": "id",
@@ -14,7 +14,7 @@
       "synonymMaps": []
     },
     {
-      "name": "case_id",
+      "name": "title",
       "type": "Edm.String",
       "searchable": true,
       "filterable": false,
@@ -26,19 +26,7 @@
       "synonymMaps": []
     },
     {
-      "name": "trust_name",
-      "type": "Edm.String",
-      "searchable": true,
-      "filterable": false,
-      "retrievable": true,
-      "stored": true,
-      "sortable": false,
-      "facetable": false,
-      "key": false,
-      "synonymMaps": []
-    },
-    {
-      "name": "search_text",
+      "name": "content",
       "type": "Edm.String",
       "searchable": true,
       "filterable": false,
@@ -51,10 +39,9 @@
     }
   ],
   "semantic": {
-    "titleField": "trust_name",
+    "titleField": "title",
     "contentFields": [
-      "search_text",
-      "case_id"
+      "content"
     ]
   }
 }
