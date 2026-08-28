@@ -2,6 +2,18 @@
   "name": "establishment_index",
   "fields": [
     {
+      "name": "id",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": true,
+      "synonymMaps": []
+    },
+    {
       "name": "establishment_urn",
       "type": "Edm.String",
       "searchable": false,
@@ -10,7 +22,7 @@
       "stored": true,
       "sortable": true,
       "facetable": false,
-      "key": true,
+      "key": false,
       "synonymMaps": []
     },
     {
@@ -146,6 +158,18 @@
       "synonymMaps": []
     },
     {
+      "name": "parliamentary_constituency",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": true,
+      "key": false,
+      "synonymMaps": []
+    },
+    {
       "name": "mp_name",
       "type": "Edm.String",
       "searchable": true,
@@ -204,20 +228,6 @@
       "facetable": false,
       "key": false,
       "synonymMaps": []
-    },
-    {
-      "name": "search_vector",
-      "type": "Collection(Edm.Single)",
-      "searchable": true,
-      "filterable": false,
-      "retrievable": true,
-      "stored": true,
-      "sortable": false,
-      "facetable": false,
-      "key": false,
-      "synonymMaps": [],
-      "dimensions": 1536,
-      "vectorSearchProfile": "${vector_profile_name}"
     }
   ],
   "semantic": {
