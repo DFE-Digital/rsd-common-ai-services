@@ -45,7 +45,7 @@ resource "azapi_data_plane_resource" "search_index" {
               "api-key" = var.vectorizer_api_key
             }
 
-            timeout = "PT60S"
+            timeout = "PT1M"
           }
         }
       ]

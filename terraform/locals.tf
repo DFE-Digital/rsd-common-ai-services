@@ -28,7 +28,8 @@ locals {
     for file_name in local.index_files :
     trimsuffix(file_name, ".json.tftpl") => jsondecode(templatefile("${path.module}/indexes/${file_name}",
       {
-        vector_profile_name = local.vector_profile_name
+        vector_profile_name      = local.vector_profile_name,
+        vector_profile_dimension = local.vector_profile_dimension
       }
       )
     )
@@ -38,4 +39,5 @@ locals {
   vector_algorithm_name       = "rsd-vector-config"
   vector_profile_name         = "rsd-vector-profile"
   semantic_configuration_name = "rsd-semantic-config"
+  vector_profile_dimension    = 3072
 }
