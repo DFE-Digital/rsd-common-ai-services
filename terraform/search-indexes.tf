@@ -35,17 +35,13 @@ resource "azapi_data_plane_resource" "search_index" {
       vectorizers = [
         {
           name = local.vectorizer_name
-          kind = "customWebApi"
+          kind = "azureOpenAI"
 
-          customWebApiParameters = {
-            uri        = var.vectorizer_api_url
-            httpMethod = "POST"
-
-            httpHeaders = {
-              "api-key" = var.vectorizer_api_key
-            }
-
-            timeout = "PT1M"
+          azureOpenAIParameters = {
+            resourceUri  = var.vectorizer_resource_uri
+            deploymentId = var.vectorizer_deployment_id
+            modelName    = var.vectorizer_model_name
+            apiKey       = var.vectorizer_api_key
           }
         }
       ]

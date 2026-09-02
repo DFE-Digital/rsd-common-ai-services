@@ -179,7 +179,9 @@ No modules.
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags to be applied to all resources | `map(string)` | n/a | yes |
 | <a name="input_tfvars_filename"></a> [tfvars\_filename](#input\_tfvars\_filename) | tfvars filename. This file is uploaded and stored within a Storage Account, to ensure that the latest tfvars are stored in a shared place. | `string` | n/a | yes |
 | <a name="input_vectorizer_api_key"></a> [vectorizer\_api\_key](#input\_vectorizer\_api\_key) | Custom vectorizer API key. | `string` | n/a | yes |
-| <a name="input_vectorizer_api_url"></a> [vectorizer\_api\_url](#input\_vectorizer\_api\_url) | Custom vectorizer Web API URL. | `string` | n/a | yes |
+| <a name="input_vectorizer_deployment_id"></a> [vectorizer\_deployment\_id](#input\_vectorizer\_deployment\_id) | vectorizer embedding model's deployment Id. | `string` | n/a | yes |
+| <a name="input_vectorizer_model_name"></a> [vectorizer\_model\_name](#input\_vectorizer\_model\_name) | vectorizer embedding model name. | `string` | n/a | yes |
+| <a name="input_vectorizer_resource_uri"></a> [vectorizer\_resource\_uri](#input\_vectorizer\_resource\_uri) | Vectorizer resource uri. | `string` | n/a | yes |
 
 ## Outputs
 
