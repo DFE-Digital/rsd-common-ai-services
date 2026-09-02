@@ -79,13 +79,13 @@ variable "tags" {
   type        = map(string)
 }
 
-variable "vectorizer_api_url" {
-  description = "Custom vectorizer Web API URL."
+variable "vectorizer_resource_uri" {
+  description = "Vectorizer resource uri."
   type        = string
 
   validation {
-    condition     = can(regex("^https://", var.vectorizer_api_url))
-    error_message = "vectorizer_api_url must use HTTPS."
+    condition     = can(regex("^https://", var.vectorizer_resource_uri))
+    error_message = "vectorizer_resource_uri must use HTTPS."
   }
 }
 
@@ -93,4 +93,14 @@ variable "vectorizer_api_key" {
   description = "Custom vectorizer API key."
   type        = string
   sensitive   = true
+}
+
+variable "vectorizer_model_name" {
+  description = "vectorizer embedding model name."
+  type        = string
+}
+
+variable "vectorizer_deployment_id" {
+  description = "vectorizer embedding model's deployment Id."
+  type        = string
 }
