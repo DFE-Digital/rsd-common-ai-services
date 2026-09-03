@@ -16,7 +16,7 @@
     {
       "name": "establishment_urn",
       "type": "Edm.String",
-      "searchable": false,
+      "searchable": true,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -99,7 +99,7 @@
     },
     {
       "name": "school_capacity",
-      "type": "Edm.Int32",
+      "type": "Edm.String",
       "searchable": false,
       "filterable": true,
       "retrievable": true,
@@ -111,7 +111,7 @@
     },
     {
       "name": "number_on_roll",
-      "type": "Edm.Int32",
+      "type": "Edm.String",
       "searchable": false,
       "filterable": true,
       "retrievable": true,
@@ -123,20 +123,8 @@
     },
     {
       "name": "percentage_seats_occupied",
-      "type": "Edm.Double",
-      "searchable": false,
-      "filterable": true,
-      "retrievable": true,
-      "stored": true,
-      "sortable": true,
-      "facetable": true,
-      "key": false,
-      "synonymMaps": []
-    },
-    {
-      "name": "financial_deficit",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -234,6 +222,16 @@
     "titleField": "establishment_name",
     "contentFields": [
       "establishment_address",
+      "local_authority_name",
+      "associated_trust_name",
+      "establishment_type",
+      "phase_of_education",
+      "mp_name",
+      "parliamentary_constituency"
+    ],
+    "keywordFields": [
+      "establishment_urn",
+      "establishment_type",
       "local_authority_name"
     ]
   }
