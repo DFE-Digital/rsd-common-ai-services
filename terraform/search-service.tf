@@ -10,6 +10,8 @@ resource "azurerm_search_service" "search" {
   local_authentication_enabled = local.search_allow_both_api_and_rbac
   authentication_failure_mode  = local.search_allow_both_api_and_rbac ? "http401WithBearerChallenge" : null
 
+  semantic_search_sku = local.semantic_search_sku
+
   identity {
     type = "SystemAssigned"
   }

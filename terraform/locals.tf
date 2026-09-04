@@ -10,6 +10,7 @@ locals {
   search_service_replica_count   = var.search_service_replica_count
   search_service_partition_count = var.search_service_partition_count
   search_allow_both_api_and_rbac = var.search_allow_both_api_and_rbac
+  semantic_search_sku            = var.semantic_search_sku
 
   private_endpoint_targets = var.private_endpoint_targets
 

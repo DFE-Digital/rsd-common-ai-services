@@ -104,3 +104,9 @@ variable "vectorizer_deployment_id" {
   description = "vectorizer embedding model's deployment Id."
   type        = string
 }
+
+variable "semantic_search_sku" {
+  description = "Semantic Search SKU"
+  type        = string
+  default     = "standard"
+}
