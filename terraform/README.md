@@ -176,6 +176,7 @@ No modules.
 | <a name="input_search_service_partition_count"></a> [search\_service\_partition\_count](#input\_search\_service\_partition\_count) | Search Service partition count | `number` | `1` | no |
 | <a name="input_search_service_replica_count"></a> [search\_service\_replica\_count](#input\_search\_service\_replica\_count) | Search Service replica count | `number` | `1` | no |
 | <a name="input_search_service_sku"></a> [search\_service\_sku](#input\_search\_service\_sku) | Search Service SKU | `string` | `"basic"` | no |
+| <a name="input_semantic_search_sku"></a> [semantic\_search\_sku](#input\_semantic\_search\_sku) | Semantic Search SKU | `string` | `"standard"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Tags to be applied to all resources | `map(string)` | n/a | yes |
 | <a name="input_tfvars_filename"></a> [tfvars\_filename](#input\_tfvars\_filename) | tfvars filename. This file is uploaded and stored within a Storage Account, to ensure that the latest tfvars are stored in a shared place. | `string` | n/a | yes |
 | <a name="input_vectorizer_api_key"></a> [vectorizer\_api\_key](#input\_vectorizer\_api\_key) | Custom vectorizer API key. | `string` | n/a | yes |
