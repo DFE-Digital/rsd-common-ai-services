@@ -57,3 +57,8 @@ terraform.rc*
 *.md text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+# .NET build output and IDE files
+bin/
+obj/
+.vs/
+*.user

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GovUK.Dfe.CoreLibs.AiAgents" Version="0.0.1-prerelease.294" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- System prompts are read from the output directory; they flow to any project that references this one. -->
+    <Content Include="Prompts\**\*.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
