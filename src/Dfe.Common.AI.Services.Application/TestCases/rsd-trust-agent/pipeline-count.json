@@ -1,0 +1,8 @@
+{
+  "prompt": "How many establishments are in the pipeline for TR99003?",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Riverside Academies Trust\ntrust_reference_number: TR99003\ntrust_type: Multi-academy trust\ndate_established: 3 April 2014\nnumber_in_trust: 26\npipeline_count: 11",
+  "mustMention": [
+    "11"
+  ],
+  "mustNotMention": []
+}

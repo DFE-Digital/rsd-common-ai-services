@@ -1,0 +1,12 @@
+{
+  "prompt": "Summarise trust TR99001: its type, when it was established, how many academies it has and has in the pipeline, which schools are in it, and the proportion of pupils eligible for free school meals.",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Northfield Learning Trust\ntrust_reference_number: TR99001\ntrust_type: Multi-academy trust\ngroup_status: Open\ndate_established: 1 September 2015\nnumber_in_trust: 17\npipeline_count: 4\ntrust_address: 1 Example Road, Westshire\nestablishments_details: Oakfield Primary School (URN 999101); Westbrook Academy (URN 999104)\naggregate_demographic: Pupils eligible for free school meals: 31.4% across the trust",
+  "mustMention": [
+    "2015",
+    "17",
+    "Oakfield Primary",
+    "Westbrook Academy",
+    "31.4"
+  ],
+  "mustNotMention": []
+}

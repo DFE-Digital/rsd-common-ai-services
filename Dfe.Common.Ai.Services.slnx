@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="src/tests/Dfe.Common.AI.Services.Application.IntegrationTests/Dfe.Common.AI.Services.Application.IntegrationTests.csproj" />
+  </Folder>
+  <Project Path="src/Dfe.Common.Ai.Services.App/Dfe.Common.Ai.Services.App.csproj" />
+  <Project Path="src/Dfe.Common.AI.Services.Application/Dfe.Common.AI.Services.Application.csproj" Id="b8041eed-40cc-4a9a-9354-9e6798dfd0e2" />
+</Solution>

@@ -1,0 +1,10 @@
+{
+  "prompt": "Summarise the establishment with URN 999101: its type, phase, capacity, number on roll and the percentage of places filled.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nestablishment_type: Academy converter\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nassociated_trust_name: Northfield Learning Trust\nschool_capacity: 420\nnumber_on_roll: 398\npercentage_seats_occupied: 94.8",
+  "mustMention": [
+    "420",
+    "398",
+    "94.8"
+  ],
+  "mustNotMention": []
+}

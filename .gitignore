@@ -57,3 +57,11 @@ terraform.rc*
 *.md text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+# .NET build output and IDE files
+bin/
+obj/
+.vs/
+*.user
+
+# Release-gate reports written by the provisioning app
+evaluation-reports/
