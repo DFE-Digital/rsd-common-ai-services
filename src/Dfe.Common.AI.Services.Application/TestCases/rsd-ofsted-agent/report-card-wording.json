@@ -1,0 +1,8 @@
+{
+  "prompt": "What did the 2025 report card say about leadership and governance at URN 999101?",
+  "evidence": "--- ofsted_index Evidence 1 ---\ntitle: Oakfield Primary School (URN 999101) report card, 20 November 2025\ncontent: Inclusion: Expected standard. Curriculum and teaching: Expected standard. Leadership and governance: Strong standard. Safeguarding: Met.",
+  "mustMention": [
+    "Strong standard"
+  ],
+  "mustNotMention": []
+}

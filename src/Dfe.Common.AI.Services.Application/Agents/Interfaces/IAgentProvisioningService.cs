@@ -3,14 +3,14 @@ using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
 namespace Dfe.Common.AI.Services.Application.Agents.Interfaces;
 
 /// <summary>
-/// Provisions managed agents in Foundry and responsible for creating or reusing agent versions based on their prompts, tools, and schemas, without running the agents themselves.
+/// Provision agents by running their release checks and creating Foundry versions for those that pass. If any agent fails, nothing is provisioned.
 /// </summary>
 public interface IAgentProvisioningService
 {
     /// <summary>
-    /// Creates each managed agent in Foundry, or reuses its current version when the prompt, tools and
-    /// schema are unchanged. No agent is run.
+    /// Provisions the agents by running their release checks and creating Foundry versions for those that pass. If any agent fails, nothing is provisioned.
     /// </summary>
-    /// <returns>The agent versions for consuming apps to pin.</returns>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The provisioned agent references.</returns>
     Task<IReadOnlyList<AgentReference>> ProvisionAsync(CancellationToken cancellationToken = default);
 }

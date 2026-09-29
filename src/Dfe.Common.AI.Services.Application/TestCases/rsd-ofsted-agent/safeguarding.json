@@ -1,0 +1,10 @@
+{
+  "prompt": "Is safeguarding effective at URN 999101?",
+  "evidence": "--- ofsted_index Evidence 1 ---\ntitle: Oakfield Park Primary School (URN 999102) inspection report, 2 October 2024\ncontent: Inspection type: Section 5. Overall effectiveness: Inadequate. Safeguarding is not effective. The school has serious weaknesses.\n\n--- ofsted_index Evidence 2 ---\ntitle: Oakfield Primary School (URN 999101) inspection report, 14 March 2023\ncontent: Inspection type: Section 5. Overall effectiveness: Requires improvement. The quality of education: Requires improvement. Behaviour and attitudes: Good. Personal development: Good. Leadership and management: Requires improvement. Safeguarding is effective. What does the school need to do to improve? Leaders should make sure the reading curriculum is taught consistently well in key stage 1.",
+  "mustMention": [
+    "effective"
+  ],
+  "mustNotMention": [
+    "not effective"
+  ]
+}

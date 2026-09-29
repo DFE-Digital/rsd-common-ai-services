@@ -1,3 +1,4 @@
+using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
@@ -5,13 +6,27 @@ namespace Dfe.Common.AI.Services.Application.Agents;
 /// <summary>
 /// Provisioned agents that are common to all DfE's RSD services, with their system prompts and other settings.
 /// </summary>
+/// <remarks>
+/// <see cref="AgentDefinition.RequireCitations"/> and <see cref="AgentDefinition.Validate"/> are applied when an
+/// agent runs, not stored in its Foundry version, so apps that run these agents must use these definitions.
+/// </remarks>
 public static class CommonAgents
 {
-    public static readonly AgentDefinition Establishment = new("establishment-agent", SystemPromptType: "Establishment");
+    public static AgentDefinition[] All =>
+    [
+        Grounded("rsd-establishment-agent", systemPromptType: "Establishment"),
+        Grounded("rsd-ofsted-agent", systemPromptType: "Ofsted"),
+        Grounded("rsd-trust-agent", systemPromptType: "Trust"),
+    ];
 
-    public static readonly AgentDefinition Ofsted = new("ofsted-agent", SystemPromptType: "Ofsted");
+    /// <summary>An agent that must cite its evidence and can't give an empty answer.</summary>
+    private static AgentDefinition Grounded(string name, string systemPromptType) =>
+        new(name, systemPromptType)
+        {
+            RequireCitations = true,
+            Validate = HasAnswer,
+        };
 
-    public static readonly AgentDefinition Trust = new("trust-agent", SystemPromptType: "Trust");
-
-    public static AgentDefinition[] All => [Establishment, Ofsted, Trust];
+    private static string? HasAnswer(AgentResult result) =>
+        string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
 }
