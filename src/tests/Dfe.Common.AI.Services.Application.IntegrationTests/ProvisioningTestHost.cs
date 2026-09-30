@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents;
@@ -45,23 +46,25 @@ internal sealed class ProvisioningTestHost : IDisposable
     public void JudgeScores(double score) =>
         Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(JudgeMetrics.All.ToDictionary(metric => metric, _ => score));
 
-    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null)
+    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
+        string prompt = "How many pupils are on roll?")
     {
         var directory = Directory.CreateDirectory(Path.Combine(TestCasesDirectory, agentName));
-        File.WriteAllText(Path.Combine(directory.FullName, "case.json"), JsonSerializer.Serialize(new
+        File.WriteAllText(Path.Combine(directory.FullName, $"{caseName}.json"), JsonSerializer.Serialize(new
         {
-            prompt = "How many pupils are on roll?",
+            prompt,
             evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
             mustMention = mustMention ?? [],
             mustNotMention = mustNotMention ?? [],
         }));
     }
 
-    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null)
+    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
+        string prompt = "How many pupils are on roll?")
     {
         foreach (var agent in CommonAgents.All)
         {
-            AddCase(agent.Name, mustMention, mustNotMention);
+            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt);
         }
     }
 
@@ -72,7 +75,9 @@ internal sealed class ProvisioningTestHost : IDisposable
     /// <param name="applicationLogLevel">
     /// Sets <c>Logging:LogLevel:Dfe.Common.AI.Services.Application</c>, as the app's appsettings.json does.
     /// </param>
-    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information")
+    /// <param name="maxParallelTestRuns">Sets <c>AgentQuality:MaxParallelTestRuns</c>.</param>
+    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information",
+        int maxParallelTestRuns = 4)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -87,6 +92,7 @@ internal sealed class ProvisioningTestHost : IDisposable
             ["AgentQuality:JudgeModel"] = judgeModel,
             ["AgentQuality:TestCasesDirectory"] = TestCasesDirectory,
             ["AgentQuality:ReportsDirectory"] = ReportsDirectory,
+            ["AgentQuality:MaxParallelTestRuns"] = maxParallelTestRuns.ToString(CultureInfo.InvariantCulture),
         }).Build();
 
         var services = new ServiceCollection()

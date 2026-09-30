@@ -1,9 +1,0 @@
-{
-  "prompt": "Which constituency is URN 999101 in, and who is its MP?",
-  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nparliamentary_constituency: Westshire North\nmp_name: Alex Example\nmp_political_party: Independent",
-  "mustMention": [
-    "Westshire North",
-    "Alex Example"
-  ],
-  "mustNotMention": []
-}

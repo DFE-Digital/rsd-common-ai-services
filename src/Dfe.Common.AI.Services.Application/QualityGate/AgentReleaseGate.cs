@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Options;
@@ -24,40 +25,92 @@ public sealed class AgentReleaseGate(
         CancellationToken cancellationToken = default)
     {
         LogJudge();
-
-        var results = new List<AgentGateResult>(definitions.Count);
+        var started = Stopwatch.GetTimestamp();
         try
         {
+            var suites = new List<TestSuite>(definitions.Count);
             foreach (var definition in definitions)
             {
-                results.Add(await TestAgentAsync(definition, cancellationToken));
+                suites.Add(await LoadSuiteAsync(definition, cancellationToken));
             }
+
+            await RunAllCasesAsync(suites, cancellationToken);
+
+            var results = new List<AgentGateResult>(suites.Count);
+            foreach (var suite in suites)
+            {
+                results.Add(await ConcludeAsync(suite, cancellationToken));
+            }
+
+            logger.LogInformation(Messages.Log.ReleaseChecksFinished, Stopwatch.GetElapsedTime(started).TotalSeconds);
+            return results;
         }
         finally
         {
             await DeleteLeftoverTestAgentsAsync();
         }
-
-        return results;
     }
 
-    private async Task<AgentGateResult> TestAgentAsync(AgentDefinition definition, CancellationToken cancellationToken)
+    private async Task<TestSuite> LoadSuiteAsync(AgentDefinition definition, CancellationToken cancellationToken)
     {
-        var casesDirectory = Path.Combine(AppContext.BaseDirectory, agentQualityOptions.TestCasesDirectory, definition.Name);
-        var cases = Directory.Exists(casesDirectory)
-            ? await AgentTestCase.LoadAsync(casesDirectory, cancellationToken)
-            : [];
-        if (cases.Count == 0)
+        var directory = Path.Combine(AppContext.BaseDirectory, agentQualityOptions.TestCasesDirectory, definition.Name);
+        var cases = Directory.Exists(directory) ? await AgentTestCase.LoadAsync(directory, cancellationToken) : [];
+        if (cases.Count > 0)
         {
-            logger.LogWarning(Messages.Log.NoTestCases, definition.Name, casesDirectory);
-            return new AgentGateResult(definition.Name, [Messages.ReleaseGate.NoTestCases(casesDirectory)]);
+            logger.LogInformation(Messages.Log.TestingAgent, definition.Name, cases.Count);
         }
 
+        return new TestSuite(definition, directory, cases);
+    }
+
+    /// <summary>
+    /// Runs every agent's test cases side by side, at most <see cref="AgentQualityOptions.MaxParallelTestRuns"/> at a
+    /// time. Each case runs on its own temporary copy of its agent, so cases don't affect each other.
+    /// </summary>
+    private async Task RunAllCasesAsync(IReadOnlyList<TestSuite> suites, CancellationToken cancellationToken)
+    {
+        var runs = suites.SelectMany(suite => suite.Cases.Select((_, index) => (Suite: suite, Index: index))).ToList();
+        var maxParallel = Math.Max(1, agentQualityOptions.MaxParallelTestRuns);
+        logger.LogInformation(Messages.Log.RunningTestCases, runs.Count, maxParallel);
+
+        var parallel = new ParallelOptions { MaxDegreeOfParallelism = maxParallel, CancellationToken = cancellationToken };
+        await Parallel.ForEachAsync(runs, parallel, async (run, token) =>
+        {
+            var result = await RunCaseAsync(run.Suite.Definition, run.Suite.Cases[run.Index], token);
+            run.Suite.Results[run.Index] = result;
+        });
+    }
+
+    private async Task<AgentTestResult> RunCaseAsync(AgentDefinition definition, AgentTestCase testCase,
+        CancellationToken cancellationToken)
+    {
         // The candidate is a temporary copy of the agent, so a Foundry version is only created if the agent passes.
-        logger.LogInformation(Messages.Log.TestingAgent, definition.Name, cases.Count);
-        var report = await agentTestRunner.RunAsync(definition, cases, AgentTestTarget.Candidate, cancellationToken);
+        var report = await agentTestRunner.RunAsync(definition, [testCase], AgentTestTarget.Candidate, cancellationToken);
+        var result = report.Results[0];
+
+        if (result.Passed)
+        {
+            logger.LogInformation(Messages.Log.TestCasePassed, definition.Name, result.CaseName);
+        }
+        else
+        {
+            logger.LogWarning(Messages.Log.TestCaseFailed, definition.Name, result.CaseName, string.Join("; ", result.Failures));
+        }
+
+        return result;
+    }
+
+    private async Task<AgentGateResult> ConcludeAsync(TestSuite suite, CancellationToken cancellationToken)
+    {
+        var agentName = suite.Definition.Name;
+        if (suite.Cases.Count == 0)
+        {
+            logger.LogWarning(Messages.Log.NoTestCases, agentName, suite.Directory);
+            return new AgentGateResult(agentName, [Messages.ReleaseGate.NoTestCases(suite.Directory)]);
+        }
+
+        var report = new AgentEvaluationReport(agentName, suite.Results);
         var reportPath = await WriteReportAsync(report, cancellationToken);
-        LogTestCases(report);
 
         var problems = report.Results
             .Where(r => !r.Passed)
@@ -66,20 +119,25 @@ public sealed class AgentReleaseGate(
 
         if (agentQualityOptions.HasJudge)
         {
-            logger.LogInformation(Messages.Log.AgentScores, definition.Name, Messages.ReleaseGate.Scores(report.AverageScores));
-            problems.AddRange(ScoreProblems(report));
+            // Cases expecting a refusal are checked by their required refusal instead: the judge's relevance score
+            // marks any refusal as irrelevant, however correct.
+            var answered = new AgentEvaluationReport(agentName,
+                [.. suite.Results.Where((_, index) => !FixedResponses.ExpectsRefusal(suite.Cases[index]))]);
+            logger.LogInformation(Messages.Log.AgentScores, agentName, Messages.ReleaseGate.Scores(answered.AverageScores),
+                suite.Cases.Count - answered.Results.Count);
+            problems.AddRange(ScoreProblems(answered));
         }
 
         if (problems.Count == 0)
         {
-            logger.LogInformation(Messages.Log.AgentPassed, definition.Name, reportPath);
+            logger.LogInformation(Messages.Log.AgentPassed, agentName, reportPath);
         }
         else
         {
-            logger.LogWarning(Messages.Log.AgentFailed, definition.Name, problems.Count, reportPath);
+            logger.LogWarning(Messages.Log.AgentFailed, agentName, problems.Count, reportPath);
         }
 
-        return new AgentGateResult(definition.Name, problems);
+        return new AgentGateResult(agentName, problems);
     }
 
     private void LogJudge()
@@ -91,21 +149,6 @@ public sealed class AgentReleaseGate(
         else
         {
             logger.LogInformation(Messages.Log.JudgeOff);
-        }
-    }
-
-    private void LogTestCases(AgentEvaluationReport report)
-    {
-        foreach (var result in report.Results)
-        {
-            if (result.Passed)
-            {
-                logger.LogInformation(Messages.Log.TestCasePassed, report.AgentName, result.CaseName);
-            }
-            else
-            {
-                logger.LogWarning(Messages.Log.TestCaseFailed, report.AgentName, result.CaseName, string.Join("; ", result.Failures));
-            }
         }
     }
 
@@ -149,5 +192,17 @@ public sealed class AgentReleaseGate(
         await using var stream = File.Create(path);
         await JsonSerializer.SerializeAsync(stream, report, ReportJson, cancellationToken);
         return path;
+    }
+
+    /// <summary>One agent's test cases, and their results in the same order once they have run.</summary>
+    private sealed class TestSuite(AgentDefinition definition, string directory, IReadOnlyList<AgentTestCase> cases)
+    {
+        public AgentDefinition Definition { get; } = definition;
+
+        public string Directory { get; } = directory;
+
+        public IReadOnlyList<AgentTestCase> Cases { get; } = cases;
+
+        public AgentTestResult[] Results { get; } = new AgentTestResult[cases.Count];
     }
 }

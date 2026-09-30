@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
@@ -8,7 +9,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
 
-public sealed class AgentProvisioningService(IAgentService agents, IAgentReleaseGate releaseGate, ILogger<AgentProvisioningService> logger) : IAgentProvisioningService
+public sealed class AgentProvisioningService(
+    IAgentService agents,
+    IAgentReleaseGate releaseGate,
+    ILogger<AgentProvisioningService> logger) : IAgentProvisioningService
 {
     public async Task<IReadOnlyList<AgentReference>> ProvisionAsync(CancellationToken cancellationToken = default)
     {
@@ -23,8 +27,14 @@ public sealed class AgentProvisioningService(IAgentService agents, IAgentRelease
             throw new AgentReleaseBlockedException(failed);
         }
 
-        // The library logs each agent's name and version as it's provisioned.
+        // The library provisions the agents it's given one after another, so each agent gets its own call and they
+        // run side by side. The library logs each agent's name and version as it's provisioned.
         logger.LogInformation(Messages.Log.Provisioning);
-        return await agents.ProvisionAsync(definitions, cancellationToken);
+        var started = Stopwatch.GetTimestamp();
+        var provisioned = await Task.WhenAll(definitions.Select(definition =>
+            agents.ProvisionAsync([definition], cancellationToken)));
+
+        logger.LogInformation(Messages.Log.ProvisioningFinished, definitions.Length, Stopwatch.GetElapsedTime(started).TotalSeconds);
+        return [.. provisioned.SelectMany(references => references)];
     }
 }

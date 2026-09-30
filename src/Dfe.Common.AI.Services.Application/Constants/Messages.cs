@@ -14,6 +14,14 @@ public static class Messages
     public static class AnswerChecks
     {
         public const string EmptyAnswer = "The answer is empty. Answer the question, or say plainly that the evidence doesn't answer it.";
+
+        public const string NoSources =
+            "End the answer with a line \"Sources:\" and then one line for each record you cited: " +
+            "[Evidence n] the record's name and identifier (the index named in its evidence heading).";
+
+        public static string SourcesMissing(IEnumerable<int> evidenceNumbers) =>
+            "Add these cited records to the Sources section: " +
+            string.Join(", ", evidenceNumbers.Select(n => $"[Evidence {n}]")) + ".";
     }
 
     /// <summary>
@@ -74,9 +82,12 @@ public static class Messages
         public const string NoTestCases = "{AgentName} has no test cases in {Directory}";
         public const string TestCasePassed = "{AgentName} / {CaseName}: passed";
         public const string TestCaseFailed = "{AgentName} / {CaseName}: failed: {Failures}";
-        public const string AgentScores = "{AgentName} average judge scores: {Scores}";
+        public const string AgentScores = "{AgentName} average judge scores: {Scores} ({Refusals} cases expecting a refusal not scored)";
         public const string AgentPassed = "{AgentName} passed its release checks. Report: {ReportPath}";
         public const string AgentFailed = "{AgentName} failed {Count} release checks. Report: {ReportPath}";
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
+        public const string RunningTestCases = "Running {Count} test cases, up to {MaxParallel} at a time";
+        public const string ReleaseChecksFinished = "Release checks finished in {Seconds:0.0} seconds";
+        public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
     }
 }

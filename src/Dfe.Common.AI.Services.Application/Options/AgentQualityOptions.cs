@@ -22,6 +22,12 @@ public sealed class AgentQualityOptions
     /// <summary>The lowest average judge score, per metric, that an agent may release with.</summary>
     public double MinimumScore { get; set; } = 3.5;
 
+    /// <summary>
+    /// How many test cases run at once, across all agents. Each uses a Foundry agent run and, with a judge, two judge
+    /// calls, so keep it within your Foundry quota, and no higher than <c>AiAgents:MaxConcurrency</c> if that's set.
+    /// </summary>
+    public int MaxParallelTestRuns { get; set; } = 4;
+
     /// <summary>Whether answers are scored by a judge model.</summary>
     public bool HasJudge => !string.IsNullOrWhiteSpace(JudgeModel);
 }

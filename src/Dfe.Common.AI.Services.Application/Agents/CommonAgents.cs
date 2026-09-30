@@ -1,4 +1,3 @@
-using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
@@ -14,19 +13,16 @@ public static class CommonAgents
 {
     public static AgentDefinition[] All =>
     [
-        Grounded("rsd-establishment-agent", systemPromptType: "Establishment"),
-        Grounded("rsd-ofsted-agent", systemPromptType: "Ofsted"),
-        Grounded("rsd-trust-agent", systemPromptType: "Trust"),
+        Grounded("rsd-establishment-agent", systemPromptKey: "Establishment"),
+        Grounded("rsd-ofsted-agent", systemPromptKey: "Ofsted"),
+        Grounded("rsd-trust-agent", systemPromptKey: "Trust"),
     ];
 
-    /// <summary>An agent that must cite its evidence and can't give an empty answer.</summary>
-    private static AgentDefinition Grounded(string name, string systemPromptType) =>
-        new(name, systemPromptType)
+    /// <summary>An agent that must cite its evidence, list the sources it cited, and can't give an empty answer.</summary>
+    private static AgentDefinition Grounded(string name, string systemPromptKey) =>
+        new(name, systemPromptKey)
         {
             RequireCitations = true,
-            Validate = HasAnswer,
+            Validate = AnswerChecks.Check,
         };
-
-    private static string? HasAnswer(AgentResult result) =>
-        string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
 }

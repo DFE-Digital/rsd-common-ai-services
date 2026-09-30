@@ -3,6 +3,7 @@ using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.Options;
 using Dfe.Common.AI.Services.Application.QualityGate;
+using GovUK.Dfe.CoreLibs.AiAgents.Quality;
 using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -29,6 +30,43 @@ public sealed class AgentProvisioningServiceTests : IDisposable
         Assert.Equal(CommonAgents.All.Select(a => a.Name), provisioned.Select(a => a.Name));
         await _host.Agents.DidNotReceive().RunAsync(
             Arg.Is<AgentDefinition>(d => d.IsManagedAgent), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await _host.Agents.Received(CommonAgents.All.Length).ProvisionAsync(
+            Arg.Is<IReadOnlyCollection<AgentDefinition>>(d => d.Count == 1), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Runs_test_cases_in_parallel_up_to_the_limit_and_reports_them_in_order()
+    {
+        _host.AddCaseForEveryAgent(caseName: "a-first");
+        _host.AddCaseForEveryAgent(caseName: "b-second");
+        var running = 0;
+        var mostAtOnce = 0;
+        _host.Agents.RunAsync(default!, default!, default, default).ReturnsForAnyArgs(async call =>
+        {
+            var now = Interlocked.Increment(ref running);
+            InterlockedMax(ref mostAtOnce, now);
+            await Task.Delay(50);
+            Interlocked.Decrement(ref running);
+            return new AgentResult(call.Arg<AgentDefinition>().Name, "398 pupils are on roll [Evidence 1].", TotalTokens: 0);
+        });
+
+        await _host.Build(maxParallelTestRuns: 2).ProvisionAsync();
+
+        Assert.Equal(2, mostAtOnce);
+        foreach (var agent in AgentNames.All)
+        {
+            var report = await File.ReadAllTextAsync(Path.Combine(_host.ReportsDirectory, $"{agent}.json"));
+            Assert.True(report.IndexOf("a-first", StringComparison.Ordinal) < report.IndexOf("b-second", StringComparison.Ordinal));
+        }
+    }
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        int current;
+        while ((current = Volatile.Read(ref target)) < value && Interlocked.CompareExchange(ref target, value, current) != current)
+        {
+            // Another run raised it at the same time; read it again.
+        }
     }
 
     [Fact]
@@ -164,6 +202,22 @@ public sealed class AgentProvisioningServiceTests : IDisposable
             Assert.Contains(Messages.ReleaseGate.NotScored(metric), ex.Message);
         }
         await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Leaves_cases_expecting_a_refusal_out_of_the_judge_averages()
+    {
+        const string Weather = "What will the weather be like tomorrow?";
+        _host.AddCaseForEveryAgent(caseName: "answered");
+        _host.AddCaseForEveryAgent(caseName: "out-of-scope", prompt: Weather, mustMention: [FixedResponses.OutOfScope]);
+        _host.AnswerWith("This is outside what I can answer. 398 pupils are on roll [Evidence 1].");
+        _host.Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(call =>
+            JudgeMetrics.All.ToDictionary(metric => metric, _ => call.Arg<AgentRunSample>().Prompt == Weather ? 1.0 : 5.0));
+
+        var provisioned = await _host.Build(JudgeModel).ProvisionAsync();
+
+        Assert.Equal(CommonAgents.All.Length, provisioned.Count);
+        Assert.Contains(_host.Logs, l => l.Message.EndsWith("(1 cases expecting a refusal not scored)"));
     }
 
     [Fact]

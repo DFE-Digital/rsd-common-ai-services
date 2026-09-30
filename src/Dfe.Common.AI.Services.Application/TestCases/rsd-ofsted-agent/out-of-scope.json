@@ -1,0 +1,8 @@
+{
+  "prompt": "What will the weather be like in Westshire tomorrow?",
+  "evidence": "--- ofsted_index Evidence 1 ---\ntitle: Oakfield Primary School (URN 999101) inspection report, 14 March 2023\ncontent: Inspection type: Section 5. Overall effectiveness: Requires improvement. The quality of education: Requires improvement. Behaviour and attitudes: Good. Personal development: Good. Leadership and management: Requires improvement. Safeguarding is effective. What does the school need to do to improve? Leaders should make sure the reading curriculum is taught consistently well in key stage 1.\nsource_url: https://reports.ofsted.gov.uk/provider/21/999101",
+  "mustMention": [
+    "outside what I can answer"
+  ],
+  "mustNotMention": []
+}
