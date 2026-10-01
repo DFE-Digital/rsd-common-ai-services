@@ -40,7 +40,7 @@ public sealed class AgentReleaseGate(
             foreach (var suite in suites)
             {
                 results.Add(await ConcludeAsync(suite, cancellationToken));
-            }
+        }
 
             logger.LogInformation(Messages.Log.ReleaseChecksFinished, Stopwatch.GetElapsedTime(started).TotalSeconds);
             return results;
@@ -58,7 +58,7 @@ public sealed class AgentReleaseGate(
         if (cases.Count > 0)
         {
             logger.LogInformation(Messages.Log.TestingAgent, definition.Name, cases.Count);
-        }
+    }
 
         return new TestSuite(definition, directory, cases);
     }
@@ -79,7 +79,7 @@ public sealed class AgentReleaseGate(
             var result = await RunCaseAsync(run.Suite.Definition, run.Suite.Cases[run.Index], token);
             run.Suite.Results[run.Index] = result;
         });
-    }
+        }
 
     private async Task<AgentTestResult> RunCaseAsync(AgentDefinition definition, AgentTestCase testCase,
         CancellationToken cancellationToken)
@@ -111,6 +111,7 @@ public sealed class AgentReleaseGate(
 
         var report = new AgentEvaluationReport(agentName, suite.Results);
         var reportPath = await WriteReportAsync(report, cancellationToken);
+        LogTestCases(report);
 
         var problems = report.Results
             .Where(r => !r.Passed)
@@ -149,6 +150,21 @@ public sealed class AgentReleaseGate(
         else
         {
             logger.LogInformation(Messages.Log.JudgeOff);
+        }
+    }
+
+    private void LogTestCases(AgentEvaluationReport report)
+    {
+        foreach (var result in report.Results)
+        {
+            if (result.Passed)
+            {
+                logger.LogInformation(Messages.Log.TestCasePassed, report.AgentName, result.CaseName);
+            }
+            else
+            {
+                logger.LogWarning(Messages.Log.TestCaseFailed, report.AgentName, result.CaseName, string.Join("; ", result.Failures));
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
@@ -25,4 +26,7 @@ public static class CommonAgents
             RequireCitations = true,
             Validate = AnswerChecks.Check,
         };
+
+    private static string? HasAnswer(AgentResult result) =>
+        string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
 }

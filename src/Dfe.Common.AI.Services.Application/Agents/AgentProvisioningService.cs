@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
 
+public sealed class AgentProvisioningService(IAgentService agents, IAgentReleaseGate releaseGate, ILogger<AgentProvisioningService> logger) : IAgentProvisioningService
 public sealed class AgentProvisioningService(
     IAgentService agents,
     IAgentReleaseGate releaseGate,

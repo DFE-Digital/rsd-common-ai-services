@@ -57,7 +57,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
         {
             var report = await File.ReadAllTextAsync(Path.Combine(_host.ReportsDirectory, $"{agent}.json"));
             Assert.True(report.IndexOf("a-first", StringComparison.Ordinal) < report.IndexOf("b-second", StringComparison.Ordinal));
-        }
+    }
     }
 
     private static void InterlockedMax(ref int target, int value)
