@@ -7,8 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-using var errorLogging = LoggerFactory.Create(logging => logging.AddSimpleConsole(o => o.SingleLine = true));
-var errorLogger = errorLogging.CreateLogger<Program>();
+using var startupLogging = LoggerFactory.Create(logging => logging.AddSimpleConsole(o => o.SingleLine = true));
+IHost? host = null;
 
 try
 {
@@ -21,7 +21,7 @@ try
 
     builder.Services.AddAgentProvisioning(builder.Configuration);
 
-    using var host = builder.Build();
+    host = builder.Build();
     await host.StartAsync();
 
     var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -43,5 +43,10 @@ try
 }
 catch (Exception ex)
 {
-    return (int)ErrorHandler.Handle(ex, errorLogger);
+    var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? startupLogging.CreateLogger<Program>();
+    return (int)ErrorHandler.Handle(ex, logger);
+}
+finally
+{
+    host?.Dispose();
 }

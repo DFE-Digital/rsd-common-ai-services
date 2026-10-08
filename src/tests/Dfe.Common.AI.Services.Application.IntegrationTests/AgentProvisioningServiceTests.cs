@@ -3,8 +3,10 @@ using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.Options;
 using Dfe.Common.AI.Services.Application.QualityGate;
-using GovUK.Dfe.CoreLibs.AiAgents.Quality;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.Exceptions;
+using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
+using GovUK.Dfe.AI.Agents.Quality;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -47,7 +49,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
             InterlockedMax(ref mostAtOnce, now);
             await Task.Delay(50);
             Interlocked.Decrement(ref running);
-            return new AgentResult(call.Arg<AgentDefinition>().Name, "398 pupils are on roll [Evidence 1].", TotalTokens: 0);
+            return new AgentResult { AgentName = call.Arg<AgentDefinition>().Name, Output = "398 pupils are on roll [Evidence 1]." };
         });
 
         await _host.Build(maxParallelTestRuns: 2).ProvisionAsync();
@@ -67,6 +69,69 @@ public sealed class AgentProvisioningServiceTests : IDisposable
         {
             // Another run raised it at the same time; read it again.
         }
+    }
+
+    [Fact]
+    public async Task Applies_the_guardrail_before_testing_and_provisioning()
+    {
+        _host.AddCaseForEveryAgent();
+        var events = new List<string>();
+        _host.Guardrails.ApplyAsync(default).ReturnsForAnyArgs(_ =>
+        {
+            events.Add("guardrail");
+            return new GuardrailReport(ProvisioningTestHost.GuardrailName, []);
+        });
+        _host.Agents.RunAsync(default!, default!, default, default).ReturnsForAnyArgs(call =>
+        {
+            lock (events) { events.Add("test"); }
+            return new AgentResult { AgentName = call.Arg<AgentDefinition>().Name, Output = "398 pupils are on roll [Evidence 1]." };
+        });
+
+        await _host.Build().ProvisionAsync();
+
+        Assert.Equal("guardrail", events[0]);
+        Assert.Equal(1, events.Count(e => e == "guardrail"));
+    }
+
+    [Fact]
+    public async Task Stops_before_testing_when_the_guardrail_is_not_in_place()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.Guardrails.ApplyAsync(default).ReturnsForAnyArgs(
+            new GuardrailReport(ProvisioningTestHost.GuardrailName, ["Deployment 'gpt-5.1' wasn't found"]));
+
+        var ex = await Assert.ThrowsAsync<GuardrailsNotAppliedException>(() => _host.Build().ProvisionAsync());
+
+        Assert.Contains("Deployment 'gpt-5.1' wasn't found", ex.Message);
+        await _host.Agents.DidNotReceiveWithAnyArgs().RunAsync(default!, default!, default, default);
+        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_guardrail_block_passes_a_case_that_allows_it()
+    {
+        _host.AddCaseForEveryAgent(caseName: "injected-instruction", guardrailMayBlock: true);
+        _host.Agents.RunAsync(default!, default!, default, default).ThrowsAsyncForAnyArgs(call =>
+            new AgentGuardrailException(call.Arg<AgentDefinition>().Name, AgentGuardrailException.PromptStage));
+
+        var provisioned = await _host.Build().ProvisionAsync();
+
+        Assert.Equal(CommonAgents.All.Length, provisioned.Count);
+        Assert.Contains(_host.Logs, l => l.Message.EndsWith("injected-instruction: blocked by the Foundry guardrail, which this case allows"));
+    }
+
+    [Fact]
+    public async Task A_guardrail_block_fails_a_case_that_does_not_allow_it()
+    {
+        _host.AddCaseForEveryAgent(caseName: "ordinary-question");
+        _host.Agents.RunAsync(default!, default!, default, default).ThrowsAsyncForAnyArgs(call =>
+            new AgentGuardrailException(call.Arg<AgentDefinition>().Name, AgentGuardrailException.AnswerStage));
+
+        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build().ProvisionAsync());
+
+        Assert.Contains("Case ordinary-question: The run failed: A Foundry guardrail blocked the answer", ex.Message);
+        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
     }
 
     [Fact]
@@ -132,7 +197,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build().ProvisionAsync());
 
-        await _host.Runtime.Received(1).DeleteOrphanedEphemeralAgentsAsync(Arg.Any<CancellationToken>());
+        await _host.Runtime.Received(1).DeleteOrphanedEphemeralAgentsAsync(Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -144,7 +209,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _host.Build(JudgeModel).ProvisionAsync());
 
-        await _host.Runtime.Received(1).DeleteOrphanedEphemeralAgentsAsync(Arg.Any<CancellationToken>());
+        await _host.Runtime.Received(1).DeleteOrphanedEphemeralAgentsAsync(Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -152,7 +217,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
     {
         _host.AddCaseForEveryAgent();
         _host.AnswerWith("398 pupils are on roll [Evidence 1].");
-        _host.Runtime.DeleteOrphanedEphemeralAgentsAsync(Arg.Any<CancellationToken>())
+        _host.Runtime.DeleteOrphanedEphemeralAgentsAsync(Arg.Any<TimeSpan?>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Foundry unavailable."));
 
         var provisioned = await _host.Build().ProvisionAsync();
@@ -183,8 +248,19 @@ public sealed class AgentProvisioningServiceTests : IDisposable
         var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build(JudgeModel).ProvisionAsync());
 
         var minimum = new AgentQualityOptions().MinimumScore;
-        Assert.Contains(Messages.ReleaseGate.ScoreBelowMinimum(JudgeMetrics.All[0], 2.0, minimum), ex.Message);
+        Assert.Contains(FormattableString.Invariant($"{JudgeMetrics.All[0]}: averaged 2, below the minimum {minimum}"), ex.Message);
         await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Runs_each_test_case_the_configured_number_of_times()
+    {
+        _host.AddCaseForEveryAgent(mustMention: ["398"]);
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+
+        await _host.Build(repeats: 3).ProvisionAsync();
+
+        await _host.Agents.ReceivedWithAnyArgs(AgentNames.All.Count * 3).RunAsync(default!, default!, default, default);
     }
 
     [Fact]
@@ -199,7 +275,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         foreach (var metric in JudgeMetrics.All)
         {
-            Assert.Contains(Messages.ReleaseGate.NotScored(metric), ex.Message);
+            Assert.Contains($"{metric}: not scored", ex.Message);
         }
         await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
     }
@@ -212,12 +288,67 @@ public sealed class AgentProvisioningServiceTests : IDisposable
         _host.AddCaseForEveryAgent(caseName: "out-of-scope", prompt: Weather, mustMention: [FixedResponses.OutOfScope]);
         _host.AnswerWith("This is outside what I can answer. 398 pupils are on roll [Evidence 1].");
         _host.Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(call =>
-            JudgeMetrics.All.ToDictionary(metric => metric, _ => call.Arg<AgentRunSample>().Prompt == Weather ? 1.0 : 5.0));
+            JudgeMetrics.All.ToDictionary(metric => metric, _ => call.Arg<CompletedAgentRun>().Prompt == Weather ? 1.0 : 5.0));
 
         var provisioned = await _host.Build(JudgeModel).ProvisionAsync();
 
         Assert.Equal(CommonAgents.All.Length, provisioned.Count);
         Assert.Contains(_host.Logs, l => l.Message.EndsWith("(1 cases expecting a refusal not scored)"));
+    }
+
+    [Fact]
+    public async Task Blocks_release_when_one_group_of_cases_scores_much_worse_than_another()
+    {
+        const string SpecialSchool = "What is the capacity of the special school?";
+        _host.AddCaseForEveryAgent(caseName: "academy", group: "academy");
+        _host.AddCaseForEveryAgent(caseName: "special-school", prompt: SpecialSchool, group: "special-school");
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(call =>
+            JudgeMetrics.All.ToDictionary(metric => metric, _ => call.Arg<CompletedAgentRun>().Prompt == SpecialSchool ? 3.6 : 4.8));
+
+        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build(JudgeModel, maxGroupGap: 0.5).ProvisionAsync());
+
+        Assert.Contains($"{JudgeMetrics.All[0]}: special-school 3.6, academy 4.8: a gap over 0.5", ex.Message);
+        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Blocks_release_when_scores_fall_below_the_baseline_by_more_than_the_tolerance()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.SaveBaselineForEveryAgent(score: 4.8);
+        _host.JudgeScores(4.2);
+
+        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build(JudgeModel).ProvisionAsync());
+
+        Assert.Contains($"{JudgeMetrics.All[0]}: fell from 4.8 to 4.2, more than the tolerance 0.2", ex.Message);
+    }
+
+    [Fact]
+    public async Task Provisions_when_scores_stay_within_the_tolerance_of_the_baseline()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.SaveBaselineForEveryAgent(score: 4.8);
+        _host.JudgeScores(4.7);
+
+        var provisioned = await _host.Build(JudgeModel).ProvisionAsync();
+
+        Assert.Equal(CommonAgents.All.Length, provisioned.Count);
+    }
+
+    [Fact]
+    public async Task An_unreadable_baseline_is_invalid_configuration()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.JudgeScores(4.5);
+        _host.SaveUnreadableBaseline(AgentNames.Trust);
+
+        var ex = await Assert.ThrowsAsync<AgentConfigurationException>(() => _host.Build(JudgeModel).ProvisionAsync());
+
+        Assert.Contains($"{AgentNames.Trust}.json isn't a readable evaluation report", ex.Message);
     }
 
     [Fact]

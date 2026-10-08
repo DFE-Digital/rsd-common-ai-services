@@ -1,4 +1,4 @@
-using GovUK.Dfe.CoreLibs.AiAgents.Quality;
+using GovUK.Dfe.AI.Agents.Quality;
 
 namespace Dfe.Common.AI.Services.Application.QualityGate;
 

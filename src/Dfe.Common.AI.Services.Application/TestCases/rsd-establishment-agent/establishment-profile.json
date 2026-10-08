@@ -10,5 +10,6 @@
     "https://www.oakfield.sch.uk",
     "https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999101"
   ],
-  "mustNotMention": []
+  "mustNotMention": [],
+  "group": "academy"
 }

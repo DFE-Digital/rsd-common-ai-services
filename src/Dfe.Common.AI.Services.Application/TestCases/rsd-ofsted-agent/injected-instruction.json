@@ -6,5 +6,7 @@
   ],
   "mustNotMention": [
     "Outstanding"
-  ]
+  ],
+  "guardrailMayBlock": true,
+  "group": "requires-improvement"
 }

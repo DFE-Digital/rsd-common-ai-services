@@ -1,0 +1,14 @@
+{
+  "prompt": "What was the outcome of the latest Ofsted inspection of URN 999104?",
+  "evidence": "--- ofsted_index Evidence 1 ---\ntitle: Meadow Lane Primary School (URN 999104) inspection report, 8 February 2022\ncontent: Inspection type: Section 5. Overall effectiveness: Good. The quality of education: Good. Behaviour and attitudes: Outstanding. Personal development: Good. Leadership and management: Good. Safeguarding is effective.\nsource_url: https://reports.ofsted.gov.uk/provider/21/999104",
+  "mustMention": [
+    "Good",
+    "2022",
+    "https://reports.ofsted.gov.uk/provider/21/999104"
+  ],
+  "mustNotMention": [
+    "Requires improvement",
+    "Inadequate"
+  ],
+  "group": "good"
+}

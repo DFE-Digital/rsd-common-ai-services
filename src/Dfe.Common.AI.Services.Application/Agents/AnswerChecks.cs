@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using Dfe.Common.AI.Services.Application.Constants;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
 

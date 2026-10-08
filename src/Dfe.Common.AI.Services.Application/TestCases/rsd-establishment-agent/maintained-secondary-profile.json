@@ -1,0 +1,13 @@
+{
+  "prompt": "Summarise the establishment with URN 999107: its type, phase, capacity, number on roll and percentage of places filled.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999107\nestablishment_name: Riverside High School\nestablishment_type: Community school\nphase_of_education: Secondary\nestablishment_age_range: 11 to 16\nlocal_authority_name: Westshire\nschool_capacity: 950\nnumber_on_roll: 873\npercentage_seats_occupied: 91.9\nsource_url: https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999107",
+  "mustMention": [
+    "Community school",
+    "950",
+    "873",
+    "91.9",
+    "https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999107"
+  ],
+  "mustNotMention": [],
+  "group": "maintained-school"
+}

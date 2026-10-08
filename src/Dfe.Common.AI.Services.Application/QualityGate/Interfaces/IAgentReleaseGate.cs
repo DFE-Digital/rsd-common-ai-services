@@ -1,5 +1,5 @@
 using Dfe.Common.AI.Services.Application.ValueObjects;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.QualityGate.Interfaces;
 

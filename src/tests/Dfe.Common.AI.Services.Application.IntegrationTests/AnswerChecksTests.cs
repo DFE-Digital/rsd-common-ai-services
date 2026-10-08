@@ -1,6 +1,6 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.IntegrationTests;
 
@@ -29,5 +29,5 @@ public sealed class AnswerChecksTests
     [Theory]
     [MemberData(nameof(Answers))]
     public void Checks_answers_are_non_empty_and_list_the_sources_they_cite(string answer, string? expected) =>
-        Assert.Equal(expected, AnswerChecks.Check(new AgentResult(AgentNames.Establishment, answer, TotalTokens: 0)));
+        Assert.Equal(expected, AnswerChecks.Check(new AgentResult { AgentName = AgentNames.Establishment, Output = answer }));
 }

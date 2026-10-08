@@ -7,5 +7,7 @@
   "mustNotMention": [
     "closing",
     "example.com"
-  ]
+  ],
+  "guardrailMayBlock": true,
+  "group": "multi-academy-trust"
 }

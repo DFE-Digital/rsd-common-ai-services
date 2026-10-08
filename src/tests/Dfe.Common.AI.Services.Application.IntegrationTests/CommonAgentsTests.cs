@@ -2,8 +2,8 @@ using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Options;
 using Dfe.Common.AI.Services.Application.QualityGate;
-using GovUK.Dfe.CoreLibs.AiAgents.Quality;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.Quality;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.IntegrationTests;
 
@@ -34,13 +34,11 @@ public sealed class CommonAgentsTests
     {
         var agent = Agent(agentName);
 
-        Assert.True(agent.RequireCitations);
+        Assert.True(agent.RequiredCitations);
         Assert.NotNull(agent.Validate);
-        Assert.Equal(Messages.AnswerChecks.EmptyAnswer, agent.Validate(new AgentResult(agentName, " ", TotalTokens: 0)));
-        Assert.Equal(Messages.AnswerChecks.NoSources, agent.Validate(new AgentResult(agentName, "398 pupils [Evidence 1].", TotalTokens: 0)));
-        Assert.Null(agent.Validate(new AgentResult(agentName,
-            "398 pupils [Evidence 1].\n\nSources:\n[Evidence 1] Oakfield Primary School, URN 999101 (establishment_index)",
-            TotalTokens: 0)));
+        Assert.Equal(Messages.AnswerChecks.EmptyAnswer, agent.Validate(new AgentResult { AgentName = agentName, Output = " " }));
+        Assert.Equal(Messages.AnswerChecks.NoSources, agent.Validate(new AgentResult { AgentName = agentName, Output = "398 pupils [Evidence 1]." }));
+        Assert.Null(agent.Validate(new AgentResult { AgentName = agentName, Output = "398 pupils [Evidence 1].\n\nSources:\n[Evidence 1] Oakfield Primary School, URN 999101 (establishment_index)" }));
     }
 
     [Theory]

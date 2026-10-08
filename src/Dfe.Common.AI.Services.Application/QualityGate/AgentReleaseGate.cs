@@ -1,25 +1,31 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application.Constants;
+using Dfe.Common.AI.Services.Application.Diagnostics;
+using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.Options;
 using Dfe.Common.AI.Services.Application.QualityGate.Interfaces;
 using Dfe.Common.AI.Services.Application.ValueObjects;
-using GovUK.Dfe.CoreLibs.AiAgents.Agents.Interfaces;
-using GovUK.Dfe.CoreLibs.AiAgents.Quality;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.Services.Interfaces;
+using GovUK.Dfe.AI.Agents.Enums;
+using GovUK.Dfe.AI.Agents.Quality;
+using GovUK.Dfe.AI.Agents.Quality.Interfaces;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Dfe.Common.AI.Services.Application.QualityGate;
 
 public sealed class AgentReleaseGate(
     IAgentTestRunner agentTestRunner,
-    IAgentRuntime agentRuntime,
+    IAgentRuntimeService agentRuntime,
     AgentQualityOptions agentQualityOptions,
     ILogger<AgentReleaseGate> logger) : IAgentReleaseGate
 {
     private static readonly JsonSerializerOptions ReportJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     private static readonly TimeSpan CleanupTimeout = TimeSpan.FromMinutes(1);
+
+    private static readonly IReadOnlyDictionary<string, double> NoScores = new Dictionary<string, double>();
 
     public async Task<IReadOnlyList<AgentGateResult>> EvaluateAsync(IReadOnlyCollection<AgentDefinition> definitions,
         CancellationToken cancellationToken = default)
@@ -40,7 +46,7 @@ public sealed class AgentReleaseGate(
             foreach (var suite in suites)
             {
                 results.Add(await ConcludeAsync(suite, cancellationToken));
-        }
+            }
 
             logger.LogInformation(Messages.Log.ReleaseChecksFinished, Stopwatch.GetElapsedTime(started).TotalSeconds);
             return results;
@@ -58,9 +64,18 @@ public sealed class AgentReleaseGate(
         if (cases.Count > 0)
         {
             logger.LogInformation(Messages.Log.TestingAgent, definition.Name, cases.Count);
-    }
+        }
 
-        return new TestSuite(definition, directory, cases);
+        var mayBeBlocked = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var testCase in cases)
+        {
+            if (await GuardrailBlocks.AllowedForAsync(Path.Combine(directory, $"{testCase.Name}.json"), cancellationToken))
+            {
+                mayBeBlocked.Add(testCase.Name);
+            }
+        }
+
+        return new TestSuite(definition, directory, cases, mayBeBlocked);
     }
 
     /// <summary>
@@ -76,17 +91,27 @@ public sealed class AgentReleaseGate(
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = maxParallel, CancellationToken = cancellationToken };
         await Parallel.ForEachAsync(runs, parallel, async (run, token) =>
         {
-            var result = await RunCaseAsync(run.Suite.Definition, run.Suite.Cases[run.Index], token);
-            run.Suite.Results[run.Index] = result;
+            var testCase = run.Suite.Cases[run.Index];
+            run.Suite.Results[run.Index] = await RunCaseAsync(
+                run.Suite.Definition, testCase, run.Suite.MayBeBlocked.Contains(testCase.Name), token);
         });
-        }
+    }
 
     private async Task<AgentTestResult> RunCaseAsync(AgentDefinition definition, AgentTestCase testCase,
-        CancellationToken cancellationToken)
+        bool mayBeBlocked, CancellationToken cancellationToken)
     {
         // The candidate is a temporary copy of the agent, so a Foundry version is only created if the agent passes.
-        var report = await agentTestRunner.RunAsync(definition, [testCase], AgentTestTarget.Candidate, cancellationToken);
+        // Repeats average out the judge's run-to-run noise; the case's facts must be right in every repeat.
+        var report = await agentTestRunner.RunAsync(definition, [testCase], AgentTestTarget.Candidate,
+            Math.Max(1, agentQualityOptions.Repeats), cancellationToken);
         var result = report.Results[0];
+
+        if (mayBeBlocked && GuardrailBlocks.IsBlocked(result))
+        {
+            logger.LogInformation(Messages.Log.TestCaseBlockedByGuardrail, definition.Name, result.CaseName);
+            ReleaseGateMetrics.RecordTestCase(definition.Name, ReleaseGateMetrics.BlockedByGuardrail);
+            return result with { Output = Messages.ReleaseGate.BlockedByGuardrail, Failures = [] };
+        }
 
         if (result.Passed)
         {
@@ -97,6 +122,7 @@ public sealed class AgentReleaseGate(
             logger.LogWarning(Messages.Log.TestCaseFailed, definition.Name, result.CaseName, string.Join("; ", result.Failures));
         }
 
+        ReleaseGateMetrics.RecordTestCase(definition.Name, result.Passed ? ReleaseGateMetrics.Passed : ReleaseGateMetrics.Failed);
         return result;
     }
 
@@ -111,24 +137,28 @@ public sealed class AgentReleaseGate(
 
         var report = new AgentEvaluationReport(agentName, suite.Results);
         var reportPath = await WriteReportAsync(report, cancellationToken);
-        LogTestCases(report);
 
-        var problems = report.Results
-            .Where(r => !r.Passed)
-            .Select(r => Messages.ReleaseGate.TestCaseFailed(r.CaseName, r.Failures))
-            .ToList();
-
+        var gated = report;
+        AgentEvaluationReport? baseline = null;
         if (agentQualityOptions.HasJudge)
         {
-            // Cases expecting a refusal are checked by their required refusal instead: the judge's relevance score
-            // marks any refusal as irrelevant, however correct.
-            var answered = new AgentEvaluationReport(agentName,
-                [.. suite.Results.Where((_, index) => !FixedResponses.ExpectsRefusal(suite.Cases[index]))]);
-            logger.LogInformation(Messages.Log.AgentScores, agentName, Messages.ReleaseGate.Scores(answered.AverageScores),
-                suite.Cases.Count - answered.Results.Count);
-            problems.AddRange(ScoreProblems(answered));
+            // Cases expecting a refusal keep their checks but not their scores: the judge's relevance score marks any
+            // refusal as irrelevant, however correct, so they're checked by their required refusal instead.
+            var refusals = suite.Cases.Where(FixedResponses.ExpectsRefusal).Select(c => c.Name).ToHashSet();
+            gated = WithoutScoresFor(report, refusals);
+            logger.LogInformation(Messages.Log.AgentScores, agentName, Messages.ReleaseGate.Scores(gated.AverageScores),
+                refusals.Count);
+            ReleaseGateMetrics.RecordScores(agentName, gated.AverageScores);
+
+            baseline = await LoadBaselineAsync(agentName, cancellationToken) is { } saved
+                ? WithoutScoresFor(saved, refusals)
+                : null;
         }
 
+        // Failed test cases, and with a judge: each metric averaging below the minimum, not scored, more than the
+        // tolerance below the baseline, or scoring one group of cases much worse than another.
+        var problems = gated.FailuresAgainst(Gate(), baseline);
+        ReleaseGateMetrics.RecordAgent(agentName, problems.Count == 0);
         if (problems.Count == 0)
         {
             logger.LogInformation(Messages.Log.AgentPassed, agentName, reportPath);
@@ -153,31 +183,45 @@ public sealed class AgentReleaseGate(
         }
     }
 
-    private void LogTestCases(AgentEvaluationReport report)
+    /// <summary>The scores each agent must reach.</summary>
+    private ReleaseGate Gate() => new()
     {
-        foreach (var result in report.Results)
+        Metrics = agentQualityOptions.HasJudge ? JudgeMetrics.All : [],
+        MinimumScore = agentQualityOptions.MinimumScore,
+        Tolerance = agentQualityOptions.Tolerance,
+        MaxGroupGap = agentQualityOptions.MaxGroupGap,
+    };
+
+    private static AgentEvaluationReport WithoutScoresFor(AgentEvaluationReport report, IReadOnlySet<string> caseNames) =>
+        report with
         {
-            if (result.Passed)
-            {
-                logger.LogInformation(Messages.Log.TestCasePassed, report.AgentName, result.CaseName);
-            }
-            else
-            {
-                logger.LogWarning(Messages.Log.TestCaseFailed, report.AgentName, result.CaseName, string.Join("; ", result.Failures));
-            }
-        }
-    }
+            Results = [.. report.Results.Select(result => caseNames.Contains(result.CaseName) ? result with { Scores = NoScores } : result)],
+        };
 
-    /// <summary>A metric scored below the minimum, or not scored at all, is a problem.</summary>
-    private IEnumerable<string> ScoreProblems(AgentEvaluationReport report)
+    /// <summary>
+    /// The agent's last accepted report, if one has been saved to <see cref="AgentQualityOptions.BaselinesDirectory"/>.
+    /// An agent without one is held to the minimum score only.
+    /// </summary>
+    private async Task<AgentEvaluationReport?> LoadBaselineAsync(string agentName, CancellationToken cancellationToken)
     {
-        var minimum = agentQualityOptions.MinimumScore;
-        var scores = report.AverageScores;
+        var path = Path.Combine(AppContext.BaseDirectory, agentQualityOptions.BaselinesDirectory, $"{agentName}.json");
+        if (!File.Exists(path))
+        {
+            logger.LogInformation(Messages.Log.NoBaseline, agentName, path);
+            return null;
+        }
 
-        return report.BelowMinimum(minimum, [.. JudgeMetrics.All])
-            .Select(metric => scores.TryGetValue(metric, out var score)
-                ? Messages.ReleaseGate.ScoreBelowMinimum(metric, score, minimum)
-                : Messages.ReleaseGate.NotScored(metric));
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            var baseline = await JsonSerializer.DeserializeAsync<AgentEvaluationReport>(stream, ReportJson, cancellationToken);
+            logger.LogInformation(Messages.Log.ComparingWithBaseline, agentName, path);
+            return baseline;
+        }
+        catch (JsonException ex)
+        {
+            throw new AgentConfigurationException(Messages.Errors.BaselineUnreadable(path, ex.Message), ex);
+        }
     }
 
     /// <summary>
@@ -190,7 +234,7 @@ public sealed class AgentReleaseGate(
         try
         {
             using var timeout = new CancellationTokenSource(CleanupTimeout);
-            await agentRuntime.DeleteOrphanedEphemeralAgentsAsync(timeout.Token);
+            await agentRuntime.DeleteOrphanedEphemeralAgentsAsync(cancellationToken: timeout.Token);
         }
         catch (Exception ex)
         {
@@ -210,14 +254,20 @@ public sealed class AgentReleaseGate(
         return path;
     }
 
-    /// <summary>One agent's test cases, and their results in the same order once they have run.</summary>
-    private sealed class TestSuite(AgentDefinition definition, string directory, IReadOnlyList<AgentTestCase> cases)
+    /// <summary>
+    /// One agent's test cases, which of them a guardrail block counts as passing, and their results in the same order
+    /// once they have run.
+    /// </summary>
+    private sealed class TestSuite(
+        AgentDefinition definition, string directory, IReadOnlyList<AgentTestCase> cases, IReadOnlySet<string> mayBeBlocked)
     {
         public AgentDefinition Definition { get; } = definition;
 
         public string Directory { get; } = directory;
 
         public IReadOnlyList<AgentTestCase> Cases { get; } = cases;
+
+        public IReadOnlySet<string> MayBeBlocked { get; } = mayBeBlocked;
 
         public AgentTestResult[] Results { get; } = new AgentTestResult[cases.Count];
     }

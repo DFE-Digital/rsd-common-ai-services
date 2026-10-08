@@ -1,5 +1,4 @@
-using Dfe.Common.AI.Services.Application.Constants;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
 
@@ -19,14 +18,10 @@ public static class CommonAgents
         Grounded("rsd-trust-agent", systemPromptKey: "Trust"),
     ];
 
-    /// <summary>An agent that must cite its evidence, list the sources it cited, and can't give an empty answer.</summary>
+    /// <summary>
+    /// An agent that must cite its evidence (the library's <c>RequiredCitations</c>, on by default), list the sources
+    /// it cited, and can't give an empty answer.
+    /// </summary>
     private static AgentDefinition Grounded(string name, string systemPromptKey) =>
-        new(name, systemPromptKey)
-        {
-            RequireCitations = true,
-            Validate = AnswerChecks.Check,
-        };
-
-    private static string? HasAnswer(AgentResult result) =>
-        string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
+        new(name, systemPromptKey) { Validate = AnswerChecks.Check };
 }
