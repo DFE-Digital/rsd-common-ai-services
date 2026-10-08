@@ -14,6 +14,14 @@ public static class Messages
     public static class AnswerChecks
     {
         public const string EmptyAnswer = "The answer is empty. Answer the question, or say plainly that the evidence doesn't answer it.";
+
+        public const string NoSources =
+            "End the answer with a line \"Sources:\" and then one line for each record you cited: " +
+            "[Evidence n] the record's name and identifier (the index named in its evidence heading).";
+
+        public static string SourcesMissing(IEnumerable<int> evidenceNumbers) =>
+            "Add these cited records to the Sources section: " +
+            string.Join(", ", evidenceNumbers.Select(n => $"[Evidence {n}]")) + ".";
     }
 
     /// <summary>
@@ -21,15 +29,10 @@ public static class Messages
     /// </summary>
     public static class ReleaseGate
     {
-        public static string NotScored(string metric) => $"The judge gave no {metric} score; the warnings above say why.";
-
         public static string NoTestCases(string directory) => $"No test cases found in {directory}.";
 
-        public static string TestCaseFailed(string caseName, IEnumerable<string> failures) =>
-            $"Test case '{caseName}': {string.Join("; ", failures)}";
-
-        public static string ScoreBelowMinimum(string metric, double score, double minimum) =>
-            $"Average {metric} score {Score(score)} is below the minimum of {Score(minimum)}.";
+        /// <summary>The recorded answer for a test case the Foundry guardrail blocked, where the case allows it.</summary>
+        public const string BlockedByGuardrail = "Blocked by the Foundry guardrail, which this test case allows.";
 
         /// <summary>Average scores for the log, e.g. "Groundedness 4.50, Relevance 4.25".</summary>
         public static string Scores(IReadOnlyDictionary<string, double> scores) =>
@@ -46,6 +49,22 @@ public static class Messages
         /// <summary>Which settings file couldn't be read, and where the parser stopped.</summary>
         public static string SettingsFileUnreadable(Exception exception) =>
             $"{exception.Message} {exception.GetBaseException().Message}";
+
+        public const string JudgeModelMoved =
+            "AgentQuality:JudgeModel has moved to AiAgents:Evaluation:JudgeModel. Move the setting there, and keep " +
+            "AiAgents:Evaluation:SampleRate at 0 so only release-gate answers are scored.";
+
+        public const string ApplicationInsightsMissing =
+            "APPLICATIONINSIGHTS_CONNECTION_STRING isn't set, so token usage, logs and release-gate results can't be sent to " +
+            "Application Insights. Set it to the Application Insights connection string, or, for local development " +
+            "only, set AiAgents:RequireTokenUsageTelemetry to false.";
+
+        public static string BaselineUnreadable(string path, string reason) =>
+            $"The baseline {path} isn't a readable evaluation report: {reason}";
+
+        public static string GuardrailsNotApplied(string guardrail, IEnumerable<string> problems) =>
+            $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned: " +
+            string.Join("; ", problems) + ".";
 
         public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
             "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
@@ -74,9 +93,18 @@ public static class Messages
         public const string NoTestCases = "{AgentName} has no test cases in {Directory}";
         public const string TestCasePassed = "{AgentName} / {CaseName}: passed";
         public const string TestCaseFailed = "{AgentName} / {CaseName}: failed: {Failures}";
-        public const string AgentScores = "{AgentName} average judge scores: {Scores}";
+        public const string AgentScores = "{AgentName} average judge scores: {Scores} ({Refusals} cases expecting a refusal not scored)";
         public const string AgentPassed = "{AgentName} passed its release checks. Report: {ReportPath}";
         public const string AgentFailed = "{AgentName} failed {Count} release checks. Report: {ReportPath}";
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
+        public const string RunningTestCases = "Running {Count} test cases, up to {MaxParallel} at a time";
+        public const string ReleaseChecksFinished = "Release checks finished in {Seconds:0.0} seconds";
+        public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
+        public const string ApplyingGuardrails = "Applying Foundry guardrail {Guardrail} to model deployments: {Deployments}";
+        public const string GuardrailsApplied = "Foundry guardrail {Guardrail} is in place";
+        public const string GuardrailsNotApplied = "The Foundry guardrail isn't in place: {Reason}";
+        public const string ComparingWithBaseline = "{AgentName} scores are compared with its baseline {Path}";
+        public const string NoBaseline = "{AgentName} has no baseline at {Path}, so it's held to the minimum score only";
+        public const string TestCaseBlockedByGuardrail = "{AgentName} / {CaseName}: blocked by the Foundry guardrail, which this case allows";
     }
 }

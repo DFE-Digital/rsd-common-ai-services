@@ -5,7 +5,9 @@ using System.Text.Json.Nodes;
 using Azure.AI.Projects;
 using Azure.Core;
 using Dfe.Common.AI.Services.Application.QualityGate;
-using GovUK.Dfe.CoreLibs.AiAgents.Quality;
+using GovUK.Dfe.AI.Agents.Evaluation.Quality;
+using GovUK.Dfe.AI.Agents.Quality.Interfaces;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.AI.Evaluation;
 using Microsoft.Extensions.AI.Evaluation.Quality;
 using Microsoft.Extensions.Configuration;
@@ -22,9 +24,15 @@ public sealed class FoundryJudgeTests
 {
     private const string JudgeModel = "gpt-5.1";
 
-    private static readonly AgentRunSample Sample = new(AgentNames.Establishment, "1", JudgeModel,
-        "How many pupils are on roll?", "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
-        "398 pupils are on roll [Evidence 1].");
+    private static readonly CompletedAgentRun Sample = new()
+    {
+        AgentName = AgentNames.Establishment,
+        AgentVersion = "1",
+        Model = JudgeModel,
+        Prompt = "How many pupils are on roll?",
+        Evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
+        Output = "398 pupils are on roll [Evidence 1].",
+    };
 
     [Theory]
     [InlineData(JudgeModel, true)]
@@ -82,16 +90,7 @@ public sealed class FoundryJudgeTests
             logger);
 
     private static IConfiguration Configuration(string judgeModel) =>
-        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["AiAgents:Foundry:Endpoint"] = "https://localhost/api/projects/tests",
-            ["AiAgents:Foundry:DefaultModel"] = "tests/gpt-4o",
-            ["AiAgents:Authentication:TenantId"] = "tenant",
-            ["AiAgents:Authentication:ClientId"] = "client",
-            ["AiAgents:Authentication:ClientSecret"] = "secret",
-            ["AiAgents:RequireTokenUsageTelemetry"] = "false",
-            ["AgentQuality:JudgeModel"] = judgeModel,
-        }).Build();
+        new ConfigurationBuilder().AddInMemoryCollection(ProvisioningTestHost.RequiredSettings(judgeModel)).Build();
 
     /// <summary>Answers every Responses API call with the given status: the judge's reply, or an error.</summary>
     private sealed class FakeFoundry(HttpStatusCode status, string text) : HttpMessageHandler

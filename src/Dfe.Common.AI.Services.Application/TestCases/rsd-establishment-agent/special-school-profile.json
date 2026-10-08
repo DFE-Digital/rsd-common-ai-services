@@ -1,0 +1,13 @@
+{
+  "prompt": "Summarise the establishment with URN 999106: its type, age range, capacity, number on roll and percentage of places filled.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999106\nestablishment_name: Brookside Special School\nestablishment_type: Community special school\nphase_of_education: Not applicable\nestablishment_age_range: 3 to 19\nlocal_authority_name: Westshire\nschool_capacity: 120\nnumber_on_roll: 131\npercentage_seats_occupied: 109.2\nsource_url: https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999106",
+  "mustMention": [
+    "Community special school",
+    "120",
+    "131",
+    "109.2",
+    "https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999106"
+  ],
+  "mustNotMention": [],
+  "group": "special-school"
+}

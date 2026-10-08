@@ -1,0 +1,15 @@
+{
+  "prompt": "Summarise the establishment with URN 999101: its type, phase, capacity, number on roll, percentage of places filled, its parliamentary constituency and MP, and its website.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nestablishment_type: Academy converter\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nassociated_trust_name: Northfield Learning Trust\nschool_capacity: 420\nnumber_on_roll: 398\npercentage_seats_occupied: 94.8\nparliamentary_constituency: Westshire North\nmp_name: Alex Example\nmp_political_party: Independent\nestablishment_website: https://www.oakfield.sch.uk\nsource_url: https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999101",
+  "mustMention": [
+    "420",
+    "398",
+    "94.8",
+    "Westshire North",
+    "Alex Example",
+    "https://www.oakfield.sch.uk",
+    "https://get-information-schools.service.gov.uk/Establishments/Establishment/Details/999101"
+  ],
+  "mustNotMention": [],
+  "group": "academy"
+}

@@ -1,8 +1,10 @@
 using Azure;
 using Azure.Identity;
+using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.ValueObjects;
+using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +18,10 @@ public sealed class ErrorHandlerTests
     public static TheoryData<Exception, ExitCode> Failures => new()
     {
         { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Ofsted, ["Failed."])]), ExitCode.ReleaseBlocked },
+        {
+            new GuardrailsNotAppliedException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
+            ExitCode.InvalidConfiguration
+        },
         { new OperationCanceledException(), ExitCode.Cancelled },
         { new InvalidOperationException(FoundryFailure, new AuthenticationFailedException("Invalid client secret.")), ExitCode.InvalidConfiguration },
         { new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
@@ -52,6 +58,19 @@ public sealed class ErrorHandlerTests
             new ServiceCollection().AddAgentProvisioning(new ConfigurationBuilder().Build()));
 
         Assert.Contains("AiAgents:Foundry:Endpoint", ex.Message);
+        Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
+    }
+
+    [Fact]
+    public void The_old_judge_model_setting_is_reported_as_invalid_configuration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["AgentQuality:JudgeModel"] = "gpt-5.1" })
+            .Build();
+
+        var ex = Assert.Throws<AgentConfigurationException>(() => new ServiceCollection().AddAgentProvisioning(configuration));
+
+        Assert.Equal(Messages.Errors.JudgeModelMoved, ex.Message);
         Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
     }
 }

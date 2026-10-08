@@ -3,7 +3,9 @@
   "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nks2_performance_latest: Reading, writing and maths expected standard 67% (2025)\nks2_performance_historic: 61% (2024); 58% (2023)",
   "mustMention": [
     "67%",
-    "58%"
+    "58%",
+    "Oakfield Primary School"
   ],
-  "mustNotMention": []
+  "mustNotMention": [],
+  "group": "academy"
 }

@@ -23,6 +23,11 @@ public static class ErrorHandler
                 logger.LogError(Messages.Log.InvalidConfiguration, configuration.Message);
                 return ExitCode.InvalidConfiguration;
 
+            // The guardrail's settings name something that doesn't exist, such as a model deployment.
+            case GuardrailsNotAppliedException guardrails:
+                logger.LogError(Messages.Log.GuardrailsNotApplied, guardrails.Message);
+                return ExitCode.InvalidConfiguration;
+
             // A settings file, such as appsettings.json, that isn't valid JSON.
             case InvalidDataException { InnerException: FormatException } settingsFile:
                 logger.LogError(Messages.Log.InvalidConfiguration, Messages.Errors.SettingsFileUnreadable(settingsFile));

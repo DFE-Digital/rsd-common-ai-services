@@ -1,0 +1,12 @@
+{
+  "prompt": "Summarise trust TR99005: its type, when it was established, and which academy is in it.",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ndate_established: 14 March 2019\nnumber_in_trust: 1\npipeline_count: 0\nestablishments_details: Hillside Academy (URN 999109)\nsource_url: https://get-information-schools.service.gov.uk/Groups/Group/Details/99005",
+  "mustMention": [
+    "Single-academy trust",
+    "2019",
+    "Hillside Academy",
+    "https://get-information-schools.service.gov.uk/Groups/Group/Details/99005"
+  ],
+  "mustNotMention": [],
+  "group": "single-academy-trust"
+}

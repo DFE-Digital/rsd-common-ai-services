@@ -1,0 +1,11 @@
+{
+  "prompt": "Compare trusts TR99003 and TR99005: when each was established, how many academies each has, and how many are in each pipeline.",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Riverside Academies Trust\ntrust_reference_number: TR99003\ntrust_type: Multi-academy trust\ndate_established: 3 April 2014\nnumber_in_trust: 26\npipeline_count: 11\nsource_url: https://get-information-schools.service.gov.uk/Groups/Group/Details/99003\n\n--- trust_index Evidence 2 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ndate_established: 14 March 2019\nnumber_in_trust: 1\nsource_url: https://get-information-schools.service.gov.uk/Groups/Group/Details/99005",
+  "mustMention": [
+    "2014",
+    "2019",
+    "26",
+    "11"
+  ],
+  "mustNotMention": []
+}
