@@ -19,6 +19,12 @@ public static class ErrorHandler
                 logger.LogError(Messages.Log.ReleaseBlocked, blocked.Message);
                 return ExitCode.ReleaseBlocked;
 
+            // Report the versions Foundry now has, then handle why provisioning stopped.
+            case AgentProvisioningIncompleteException incomplete:
+                logger.LogError(Messages.Log.ProvisioningIncomplete,
+                    string.Join(", ", incomplete.Provisioned.Select(a => $"{a.Name} {a.Version}")), string.Join(", ", incomplete.Failed));
+                return Handle(incomplete.InnerException!, logger);
+
             case AgentConfigurationException configuration:
                 logger.LogError(Messages.Log.InvalidConfiguration, configuration.Message);
                 return ExitCode.InvalidConfiguration;
@@ -53,6 +59,20 @@ public static class ErrorHandler
 
         logger.LogCritical(exception, Messages.Log.UnexpectedError);
         return ExitCode.Failed;
+    }
+
+    /// <summary>
+    /// The one line the job writes to the console when it fails, so whoever runs it sees why without opening
+    /// Application Insights: the job's own message, and the underlying cause where the job wrapped one.
+    /// </summary>
+    public static string Summarise(ExitCode exitCode, Exception exception)
+    {
+        // The job's own exceptions explain what happened; the base exception says why. Others are the cause already.
+        var cause = exception.GetBaseException();
+        var ownMessageAndCause = exception is AgentProvisioningIncompleteException or AgentConfigurationException;
+        var reason = ownMessageAndCause && cause != exception ? $"{exception.Message} Cause: {cause.Message}" : cause.Message;
+
+        return Messages.Errors.RunFailed(exitCode, reason);
     }
 
     private static T? Find<T>(Exception? exception) where T : Exception => exception switch

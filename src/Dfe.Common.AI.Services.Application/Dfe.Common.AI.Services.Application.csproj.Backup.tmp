@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.358" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.305" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.316" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dfe.Common.AI.Services.Application.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- System prompts are read from the output directory; they flow to any project that references this one. -->
+    <Content Include="Prompts\**\*.md" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Release-gate test cases, one folder per agent. -->
+    <Content Include="TestCases\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Each agent's last accepted evaluation report, which its scores mustn't fall below. -->
+    <Content Include="Baselines\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

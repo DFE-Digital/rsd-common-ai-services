@@ -6,8 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-using var startupLogging = LoggerFactory.Create(logging => logging.AddSimpleConsole(o => o.SingleLine = true));
 IHost? host = null;
 
 try
@@ -43,8 +43,13 @@ try
 }
 catch (Exception ex)
 {
-    var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? startupLogging.CreateLogger<Program>();
-    return (int)ErrorHandler.Handle(ex, logger);
+    // Before the host exists there's nowhere to log to; the line below still says why.
+    var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? (ILogger)NullLogger.Instance;
+    var exitCode = ErrorHandler.Handle(ex, logger);
+
+    // Logs go to Application Insights, so say why here too, for whoever ran the job.
+    await Console.Error.WriteLineAsync(ErrorHandler.Summarise(exitCode, ex));
+    return (int)exitCode;
 }
 finally
 {

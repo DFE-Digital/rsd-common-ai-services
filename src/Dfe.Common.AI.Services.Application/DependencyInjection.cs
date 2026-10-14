@@ -1,6 +1,5 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
-using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.Extensions;
 using Dfe.Common.AI.Services.Application.Options;
@@ -15,7 +14,6 @@ namespace Dfe.Common.AI.Services.Application;
 public static class DependencyInjection
 {
     private const string JudgeModelKey = "AiAgents:Evaluation:JudgeModel";
-    private const string LegacyJudgeModelKey = "AgentQuality:JudgeModel"; 
 
     /// <summary>
     /// Registers the common managed agents and the service that provisions them in Foundry.
@@ -25,11 +23,6 @@ public static class DependencyInjection
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddAgentProvisioning(this IServiceCollection services, IConfiguration configuration)
     {
-        if (!string.IsNullOrWhiteSpace(configuration[LegacyJudgeModelKey]))
-        {
-            throw new AgentConfigurationException(Messages.Errors.JudgeModelMoved);
-        }
-
         var qualityOptions = configuration.GetSection(AgentQualityOptions.SectionName).Get<AgentQualityOptions>()
             ?? new AgentQualityOptions();
         qualityOptions.JudgeModel = configuration[JudgeModelKey];
@@ -44,7 +37,7 @@ public static class DependencyInjection
             throw new AgentConfigurationException(ex.Message, ex);
         }
 
-        services.AddApplicationInsights(configuration);
+        services.AddObservability(configuration);
         services.AddSingleton(qualityOptions);
         services.AddSingleton<IAgentReleaseGate, AgentReleaseGate>();
         services.AddSingleton<IAgentProvisioningService, AgentProvisioningService>();
@@ -63,5 +56,5 @@ public static class DependencyInjection
             // sampling belongs in the apps that run the agents.
             agents.AddQualityEvaluation();
         }
-    } 
+    }
 }

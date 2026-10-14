@@ -38,11 +38,37 @@ public sealed class AgentProvisioningService(
         // run side by side. The library logs each agent's name and version as it's provisioned.
         logger.LogInformation(Messages.Log.Provisioning);
         var started = Stopwatch.GetTimestamp();
-        var provisioned = await Task.WhenAll(definitions.Select(definition =>
-            agents.ProvisionAsync([definition], cancellationToken)));
+        var provisioning = definitions.Select(definition => agents.ProvisionAsync([definition], cancellationToken)).ToArray();
+        try
+        {
+            await Task.WhenAll(provisioning);
+        }
+        catch (Exception ex)
+        {
+            ThrowIfPartlyProvisioned(definitions, provisioning, ex);
+            throw;
+        }
 
         logger.LogInformation(Messages.Log.ProvisioningFinished, definitions.Length, Stopwatch.GetElapsedTime(started).TotalSeconds);
-        return [.. provisioned.SelectMany(references => references)];
+        return [.. provisioning.SelectMany(task => task.Result)];
+    }
+
+    /// <summary>
+    /// Agents are provisioned side by side, so one can fail after others have new versions. Those versions must be
+    /// reported, as no consuming app knows about them. If none were provisioned, Foundry is unchanged and the original
+    /// failure is enough.
+    /// </summary>
+    private static void ThrowIfPartlyProvisioned(AgentDefinition[] definitions,
+        Task<IReadOnlyList<AgentReference>>[] provisioning, Exception failure)
+    {
+        var provisioned = provisioning.Where(task => task.IsCompletedSuccessfully).SelectMany(task => task.Result).ToList();
+        if (provisioned.Count == 0)
+        {
+            return;
+        }
+
+        var failed = definitions.Where((_, index) => !provisioning[index].IsCompletedSuccessfully).Select(d => d.Name).ToList();
+        throw new AgentProvisioningIncompleteException(provisioned, failed, failure);
     }
 
     /// <summary>

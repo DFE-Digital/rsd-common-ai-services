@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 /// <summary>Not run alongside other tests, whose release-gate metrics would be collected too.</summary>
 [CollectionDefinition(nameof(TelemetryTests), DisableParallelization = true)]
@@ -31,7 +31,7 @@ public sealed class TelemetryTests : IDisposable
     {
         var settings = ProvisioningTestHost.RequiredSettings();
         settings["AiAgents:RequireTokenUsageTelemetry"] = "true";
-        settings[ApplicationInsightExtension.ConnectionStringKey] =
+        settings[ObservabilityExtensions.ConnectionStringKey] =
             "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://localhost/";
 
         var services = new ServiceCollection().AddAgentProvisioning(Configuration(settings));
@@ -44,7 +44,7 @@ public sealed class TelemetryTests : IDisposable
     public void Logs_go_through_Serilog_to_Application_Insights_only()
     {
         var settings = ProvisioningTestHost.RequiredSettings();
-        settings[ApplicationInsightExtension.ConnectionStringKey] =
+        settings[ObservabilityExtensions.ConnectionStringKey] =
             "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://localhost/";
         var services = new ServiceCollection().AddSingleton<ILoggerProvider, ConsoleStandIn>();
 
@@ -73,7 +73,7 @@ public sealed class TelemetryTests : IDisposable
     {
         _host.AddCaseForEveryAgent(mustMention: ["398"], caseName: "passes");
         _host.AddCaseForEveryAgent(mustMention: ["999"], caseName: "fails");
-        _host.AnswerWith("398 pupils are on roll [Evidence 1].\n\nSources:\n[Evidence 1] Oakfield Primary School");
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].\n\nSources:\n- [Evidence 1]");
         _host.JudgeScores(4.25);
         using var testCases = new MetricCollector<long>(ReleaseGateMetrics.TestCases);
         using var scores = new MetricCollector<double>(ReleaseGateMetrics.Scores);

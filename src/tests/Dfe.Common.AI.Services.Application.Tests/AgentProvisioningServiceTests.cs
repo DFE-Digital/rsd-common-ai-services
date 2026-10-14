@@ -1,3 +1,4 @@
+using Azure;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
@@ -10,8 +11,9 @@ using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using NSubstitute.Extensions;
 
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class AgentProvisioningServiceTests : IDisposable
 {
@@ -31,9 +33,40 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         Assert.Equal(CommonAgents.All.Select(a => a.Name), provisioned.Select(a => a.Name));
         await _host.Agents.DidNotReceive().RunAsync(
-            Arg.Is<AgentDefinition>(d => d.IsManagedAgent), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+            Arg.Is<AgentDefinition>(d => d.IsManagedAgent), Arg.Any<string>(), Arg.Any<AgentEvidence?>(), Arg.Any<CancellationToken>());
         await _host.Agents.Received(CommonAgents.All.Length).ProvisionAsync(
             Arg.Is<IReadOnlyCollection<AgentDefinition>>(d => d.Count == 1), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Reports_the_new_versions_when_provisioning_stops_part_way()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.Agents.Configure().ProvisionAsync(default!, default).ReturnsForAnyArgs(call =>
+        {
+            var definition = call.Arg<IReadOnlyCollection<AgentDefinition>>().Single();
+            return definition.Name == AgentNames.Trust
+                ? Task.FromException<IReadOnlyList<AgentReference>>(new RequestFailedException(403, "Forbidden."))
+                : Task.FromResult<IReadOnlyList<AgentReference>>([new AgentReference(definition.Name, definition.Name, "2")]);
+        });
+
+        var ex = await Assert.ThrowsAsync<AgentProvisioningIncompleteException>(() => _host.Build().ProvisionAsync());
+
+        Assert.Equal([AgentNames.Establishment, AgentNames.Ofsted], ex.Provisioned.Select(a => a.Name));
+        Assert.Equal([AgentNames.Trust], ex.Failed);
+        Assert.Contains($"{AgentNames.Establishment} 2, {AgentNames.Ofsted} 2", ex.Message);
+        Assert.IsType<RequestFailedException>(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task Reports_the_original_failure_when_no_agent_was_provisioned()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        _host.Agents.Configure().ProvisionAsync(default!, default).ThrowsAsyncForAnyArgs(new RequestFailedException(403, "Forbidden."));
+
+        await Assert.ThrowsAsync<RequestFailedException>(() => _host.Build().ProvisionAsync());
     }
 
     [Fact]

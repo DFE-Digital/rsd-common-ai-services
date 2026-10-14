@@ -5,11 +5,12 @@ using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.ValueObjects;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class ErrorHandlerTests
 {
@@ -27,6 +28,11 @@ public sealed class ErrorHandlerTests
         { new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
         { new AggregateException(new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
         { new NullReferenceException(), ExitCode.Failed },
+        {
+            new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")], [AgentNames.Trust],
+                new RequestFailedException(403, "Forbidden.")),
+            ExitCode.AzureRequestFailed
+        },
     };
 
     [Theory]
@@ -62,15 +68,23 @@ public sealed class ErrorHandlerTests
     }
 
     [Fact]
-    public void The_old_judge_model_setting_is_reported_as_invalid_configuration()
+    public void Summarises_a_failure_in_one_line_with_its_cause()
     {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["AgentQuality:JudgeModel"] = "gpt-5.1" })
-            .Build();
+        var ex = new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden."));
 
-        var ex = Assert.Throws<AgentConfigurationException>(() => new ServiceCollection().AddAgentProvisioning(configuration));
+        Assert.Equal("Failed with exit code 4 (AzureRequestFailed): Forbidden.", ErrorHandler.Summarise(ExitCode.AzureRequestFailed, ex));
+    }
 
-        Assert.Equal(Messages.Errors.JudgeModelMoved, ex.Message);
-        Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
+    [Fact]
+    public void Summarises_partial_provisioning_with_the_new_versions_and_the_cause()
+    {
+        var ex = new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")],
+            [AgentNames.Trust], new RequestFailedException(403, "Forbidden."));
+
+        var summary = ErrorHandler.Summarise(ExitCode.AzureRequestFailed, ex);
+
+        Assert.Contains($"Foundry has new versions of {AgentNames.Ofsted} 2", summary);
+        Assert.Contains($"{AgentNames.Trust} weren't provisioned", summary);
+        Assert.EndsWith("Cause: Forbidden.", summary);
     }
 }

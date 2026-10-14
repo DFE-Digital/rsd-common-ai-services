@@ -7,17 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.9.0" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.151" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.98" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.109" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.447" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.394" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.405" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Dfe.Common.AI.Services.Application.IntegrationTests" />
+    <InternalsVisibleTo Include="Dfe.Common.AI.Services.Application.Tests" />
   </ItemGroup>
 
   <ItemGroup>

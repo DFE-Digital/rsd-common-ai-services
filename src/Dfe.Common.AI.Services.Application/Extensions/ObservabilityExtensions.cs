@@ -5,26 +5,32 @@ using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Resources;
 using Serilog;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
 
 namespace Dfe.Common.AI.Services.Application.Extensions;
 
-[ExcludeFromCodeCoverage]
-public static class ApplicationInsightExtension
+internal static class ObservabilityExtensions
 {
+    /// <summary>Read by the Azure Monitor exporter itself, from settings or the environment variable of that name.</summary>
+    internal const string ConnectionStringKey = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+
     private const string ApplicationNameKey = "AiAgents:ApplicationName";
-    public const string ConnectionStringKey = "APPLICATIONINSIGHTS_CONNECTION_STRING";
     private const string RequireTelemetryKey = "AiAgents:RequireTokenUsageTelemetry";
 
     /// <summary>
-    /// Adds Application Insights telemetry to the application.
+    /// Sends logs, traces and metrics to Application Insights only. Serilog, configured by the <c>Serilog</c> settings,
+    /// replaces the host's logging providers (such as the console) and passes its events to the OpenTelemetry provider,
+    /// so logs share the exporter with the agents library's metrics and traces and the release-gate metrics.
     /// </summary>
-    /// <param name="builder"></param>
-    /// <exception cref="AgentConfigurationException"></exception>
-    public static IServiceCollection AddApplicationInsights(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration.</param>
+    /// <returns>The updated service collection.</returns>
+    /// <exception cref="AgentConfigurationException">
+    /// No connection string is set while <c>AiAgents:RequireTokenUsageTelemetry</c> is true (the default).
+    /// </exception>
+    public static IServiceCollection AddObservability(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddLogging(logging => logging.ClearProviders());
         services.AddSerilog(
@@ -42,6 +48,7 @@ public static class ApplicationInsightExtension
             return services;
         }
 
+        // The role name in Application Insights; the library tags its metrics with the same ApplicationName.
         var applicationName = configuration[ApplicationNameKey] ?? AppDomain.CurrentDomain.FriendlyName;
 
         services.AddOpenTelemetry()
@@ -50,6 +57,7 @@ public static class ApplicationInsightExtension
             .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName, ReleaseGateMetrics.MeterName))
             .WithLogging(configureBuilder: null, configureOptions: logs => logs.IncludeFormattedMessage = true)
             .UseAzureMonitorExporter();
+
         return services;
     }
 }

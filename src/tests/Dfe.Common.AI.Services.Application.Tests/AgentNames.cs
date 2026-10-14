@@ -1,4 +1,4 @@
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 /// <summary>
 /// Contains the names of the agents that are provisioned and tested in this project.

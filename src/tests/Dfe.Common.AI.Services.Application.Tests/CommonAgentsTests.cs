@@ -5,7 +5,7 @@ using Dfe.Common.AI.Services.Application.QualityGate;
 using GovUK.Dfe.AI.Agents.Quality;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class CommonAgentsTests
 {
@@ -38,7 +38,7 @@ public sealed class CommonAgentsTests
         Assert.NotNull(agent.Validate);
         Assert.Equal(Messages.AnswerChecks.EmptyAnswer, agent.Validate(new AgentResult { AgentName = agentName, Output = " " }));
         Assert.Equal(Messages.AnswerChecks.NoSources, agent.Validate(new AgentResult { AgentName = agentName, Output = "398 pupils [Evidence 1]." }));
-        Assert.Null(agent.Validate(new AgentResult { AgentName = agentName, Output = "398 pupils [Evidence 1].\n\nSources:\n[Evidence 1] Oakfield Primary School, URN 999101 (establishment_index)" }));
+        Assert.Null(agent.Validate(new AgentResult { AgentName = agentName, Output = "398 pupils [Evidence 1].\n\nSources:\n- [Evidence 1]" }));
     }
 
     [Theory]

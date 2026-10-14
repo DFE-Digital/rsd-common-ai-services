@@ -17,8 +17,10 @@ public static partial class AnswerChecks
         string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
 
     /// <summary>
-    /// A reader never sees the numbered evidence, so an answer that cites it must end with a Sources section naming
-    /// each cited record, with its link where the record has one, so the reader can verify it. An answer that cites
+    /// A reader never sees the numbered evidence, so an answer that cites it must end with a Sources section listing
+    /// each cited record as <c>[Evidence n]</c>. Where the app passes the evidence's sources (AISearch's
+    /// <c>RenderCitations</c>), the library replaces each citation with the record's name and link, taken from the
+    /// index, after these checks. So the model never writes a source link, and can't invent one. An answer that cites
     /// nothing needs no sources.
     /// </summary>
     public static string? ListsItsSources(AgentResult result)
@@ -38,8 +40,13 @@ public static partial class AnswerChecks
             return Messages.AnswerChecks.NoSources;
         }
 
-        var listed = Citations(answer[sourcesHeading.Index..]);
-        var missing = cited.Except(listed).Order().ToList();
+        var sources = answer[sourcesHeading.Index..];
+        if (Link().IsMatch(sources))
+        {
+            return Messages.AnswerChecks.LinksInSources;
+        }
+
+        var missing = cited.Except(Citations(sources)).Order().ToList();
         return missing.Count == 0 ? null : Messages.AnswerChecks.SourcesMissing(missing);
     }
 
@@ -48,6 +55,10 @@ public static partial class AnswerChecks
 
     [GeneratedRegex(@"\[Evidence (\d{1,6})\]")]
     private static partial Regex Citation();
+
+    /// <summary>A web address or a Markdown link.</summary>
+    [GeneratedRegex(@"https?://|www\.|\]\(", RegexOptions.IgnoreCase)]
+    private static partial Regex Link();
 
     /// <summary>"Sources", on a line of its own or starting one, as plain text, bold or a heading.</summary>
     [GeneratedRegex(@"^[ \t]*(?:#{1,6}[ \t]*)?\**Sources\**[ \t]*:?\**", RegexOptions.Multiline | RegexOptions.IgnoreCase)]

@@ -66,16 +66,7 @@ public sealed class AgentReleaseGate(
             logger.LogInformation(Messages.Log.TestingAgent, definition.Name, cases.Count);
         }
 
-        var mayBeBlocked = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var testCase in cases)
-        {
-            if (await GuardrailBlocks.AllowedForAsync(Path.Combine(directory, $"{testCase.Name}.json"), cancellationToken))
-            {
-                mayBeBlocked.Add(testCase.Name);
-            }
-        }
-
-        return new TestSuite(definition, directory, cases, mayBeBlocked);
+        return new TestSuite(definition, directory, cases);
     }
 
     /// <summary>
@@ -91,14 +82,12 @@ public sealed class AgentReleaseGate(
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = maxParallel, CancellationToken = cancellationToken };
         await Parallel.ForEachAsync(runs, parallel, async (run, token) =>
         {
-            var testCase = run.Suite.Cases[run.Index];
-            run.Suite.Results[run.Index] = await RunCaseAsync(
-                run.Suite.Definition, testCase, run.Suite.MayBeBlocked.Contains(testCase.Name), token);
+            run.Suite.Results[run.Index] = await RunCaseAsync(run.Suite.Definition, run.Suite.Cases[run.Index], token);
         });
     }
 
     private async Task<AgentTestResult> RunCaseAsync(AgentDefinition definition, AgentTestCase testCase,
-        bool mayBeBlocked, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         // The candidate is a temporary copy of the agent, so a Foundry version is only created if the agent passes.
         // Repeats average out the judge's run-to-run noise; the case's facts must be right in every repeat.
@@ -106,11 +95,13 @@ public sealed class AgentReleaseGate(
             Math.Max(1, agentQualityOptions.Repeats), cancellationToken);
         var result = report.Results[0];
 
-        if (mayBeBlocked && GuardrailBlocks.IsBlocked(result))
+        // A case with "guardrailMayBlock": true passes when the Foundry guardrail blocks it, e.g. a planted instruction.
+        // A block on any other case fails it: that's a false positive worth knowing about.
+        if (result.BlockedByGuardrail)
         {
             logger.LogInformation(Messages.Log.TestCaseBlockedByGuardrail, definition.Name, result.CaseName);
             ReleaseGateMetrics.RecordTestCase(definition.Name, ReleaseGateMetrics.BlockedByGuardrail);
-            return result with { Output = Messages.ReleaseGate.BlockedByGuardrail, Failures = [] };
+            return result with { Output = Messages.ReleaseGate.BlockedByGuardrail };
         }
 
         if (result.Passed)
@@ -254,20 +245,14 @@ public sealed class AgentReleaseGate(
         return path;
     }
 
-    /// <summary>
-    /// One agent's test cases, which of them a guardrail block counts as passing, and their results in the same order
-    /// once they have run.
-    /// </summary>
-    private sealed class TestSuite(
-        AgentDefinition definition, string directory, IReadOnlyList<AgentTestCase> cases, IReadOnlySet<string> mayBeBlocked)
+    /// <summary>One agent's test cases, and their results in the same order once they have run.</summary>
+    private sealed class TestSuite(AgentDefinition definition, string directory, IReadOnlyList<AgentTestCase> cases)
     {
         public AgentDefinition Definition { get; } = definition;
 
         public string Directory { get; } = directory;
 
         public IReadOnlyList<AgentTestCase> Cases { get; } = cases;
-
-        public IReadOnlySet<string> MayBeBlocked { get; } = mayBeBlocked;
 
         public AgentTestResult[] Results { get; } = new AgentTestResult[cases.Count];
     }

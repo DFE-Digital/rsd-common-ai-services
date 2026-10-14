@@ -1,3 +1,5 @@
+using GovUK.Dfe.AI.Agents.ValueObjects;
+using Dfe.Common.AI.Services.Application.ErrorHandling;
 using System.Globalization;
 using Dfe.Common.AI.Services.Application.ValueObjects;
 
@@ -16,8 +18,12 @@ public static class Messages
         public const string EmptyAnswer = "The answer is empty. Answer the question, or say plainly that the evidence doesn't answer it.";
 
         public const string NoSources =
-            "End the answer with a line \"Sources:\" and then one line for each record you cited: " +
-            "[Evidence n] the record's name and identifier (the index named in its evidence heading).";
+            "End the answer with a line \"Sources:\" and then one line for each record you cited, written only as " +
+            "- [Evidence n].";
+
+        public const string LinksInSources =
+            "Write each line of the Sources section only as - [Evidence n], with no links, URLs or names: the record's " +
+            "name and link are added for you.";
 
         public static string SourcesMissing(IEnumerable<int> evidenceNumbers) =>
             "Add these cited records to the Sources section: " +
@@ -50,10 +56,6 @@ public static class Messages
         public static string SettingsFileUnreadable(Exception exception) =>
             $"{exception.Message} {exception.GetBaseException().Message}";
 
-        public const string JudgeModelMoved =
-            "AgentQuality:JudgeModel has moved to AiAgents:Evaluation:JudgeModel. Move the setting there, and keep " +
-            "AiAgents:Evaluation:SampleRate at 0 so only release-gate answers are scored.";
-
         public const string ApplicationInsightsMissing =
             "APPLICATIONINSIGHTS_CONNECTION_STRING isn't set, so token usage, logs and release-gate results can't be sent to " +
             "Application Insights. Set it to the Application Insights connection string, or, for local development " +
@@ -66,6 +68,14 @@ public static class Messages
             $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned: " +
             string.Join("; ", problems) + ".";
 
+        public static string ProvisioningIncomplete(IEnumerable<AgentReference> provisioned, IEnumerable<string> failed) =>
+            $"Provisioning stopped part way. Foundry has new versions of {string.Join(", ", provisioned.Select(a => $"{a.Name} {a.Version}"))}, " +
+            $"which no app has been told about; {string.Join(", ", failed)} weren't provisioned. Fix the cause and run again.";
+
+        /// <summary>The one line the job writes to the console when it fails, as its logs are in Application Insights.</summary>
+        public static string RunFailed(ExitCode exitCode, string reason) =>
+            $"Failed with exit code {(int)exitCode} ({exitCode}): {reason}";
+
         public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
             "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
             string.Join(Environment.NewLine, failed.SelectMany(r => r.Problems.Select(p => $"- {r.AgentName}: {p}")));
@@ -77,6 +87,7 @@ public static class Messages
     public static class Log
     {
         public const string ReleaseBlocked = "Agent release blocked by gate: {Problems}";
+        public const string ProvisioningIncomplete = "Provisioning stopped part way; new versions no app knows about: {Provisioned}; not provisioned: {Failed}";
         public const string LeftoverTestAgentsNotDeleted = "Couldn't check Foundry for leftover test agents; the next run will try again";
         public const string InvalidConfiguration = "The settings are invalid: {Reason}";
         public const string AuthenticationFailed = "Couldn't sign in to Azure; check AiAgents:Authentication: {Reason}";
