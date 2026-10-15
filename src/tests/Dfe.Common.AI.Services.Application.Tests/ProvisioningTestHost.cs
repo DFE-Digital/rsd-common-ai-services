@@ -44,14 +44,14 @@ internal sealed class ProvisioningTestHost : IDisposable
         ["AiAgents:Guardrails:SubscriptionId"] = GuardrailSubscription,
         ["AiAgents:Guardrails:ResourceGroup"] = GuardrailResourceGroup,
         ["AiAgents:Guardrails:Name"] = GuardrailName,
-        ["AiAgents:Guardrails:Deployments:0"] = "gpt-5.1",
+        ["AiAgents:Guardrails:Targets"] = "Agents",
         ["AiAgents:Evaluation:JudgeModel"] = judgeModel,
         ["AiAgents:Evaluation:SampleRate"] = "0",
     };
 
     public ProvisioningTestHost()
     {
-        Guardrails.ApplyAsync(default).ReturnsForAnyArgs(new GuardrailReport(GuardrailName, []));
+        Guardrails.CheckAsync(default).ReturnsForAnyArgs(new GuardrailReport(GuardrailName, []));
         Agents.ProvisionAsync(default!, default).ReturnsForAnyArgs(call =>
             [.. call.Arg<IReadOnlyCollection<AgentDefinition>>().Select(d => new AgentReference(d.Name, d.Name, "1"))]);
     }

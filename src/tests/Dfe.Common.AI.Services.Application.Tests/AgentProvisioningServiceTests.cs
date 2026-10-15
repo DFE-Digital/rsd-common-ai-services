@@ -17,7 +17,7 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class AgentProvisioningServiceTests : IDisposable
 {
-    private const string JudgeModel = "judge-model";
+    private const string JudgeModel = "tests/judge-model";
 
     private readonly ProvisioningTestHost _host = new();
 
@@ -105,11 +105,11 @@ public sealed class AgentProvisioningServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Applies_the_guardrail_before_testing_and_provisioning()
+    public async Task Checks_the_guardrail_before_testing_and_never_changes_it()
     {
         _host.AddCaseForEveryAgent();
         var events = new List<string>();
-        _host.Guardrails.ApplyAsync(default).ReturnsForAnyArgs(_ =>
+        _host.Guardrails.CheckAsync(default).ReturnsForAnyArgs(_ =>
         {
             events.Add("guardrail");
             return new GuardrailReport(ProvisioningTestHost.GuardrailName, []);
@@ -124,6 +124,7 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         Assert.Equal("guardrail", events[0]);
         Assert.Equal(1, events.Count(e => e == "guardrail"));
+        await _host.Guardrails.DidNotReceiveWithAnyArgs().ApplyAsync(default);
     }
 
     [Fact]
@@ -131,12 +132,12 @@ public sealed class AgentProvisioningServiceTests : IDisposable
     {
         _host.AddCaseForEveryAgent();
         _host.AnswerWith("398 pupils are on roll [Evidence 1].");
-        _host.Guardrails.ApplyAsync(default).ReturnsForAnyArgs(
-            new GuardrailReport(ProvisioningTestHost.GuardrailName, ["Deployment 'gpt-5.1' wasn't found"]));
+        _host.Guardrails.CheckAsync(default).ReturnsForAnyArgs(
+            new GuardrailReport(ProvisioningTestHost.GuardrailName, ["blocklist 'personal-identifiers' doesn't exist"]));
 
-        var ex = await Assert.ThrowsAsync<GuardrailsNotAppliedException>(() => _host.Build().ProvisionAsync());
+        var ex = await Assert.ThrowsAsync<GuardrailNotInPlaceException>(() => _host.Build().ProvisionAsync());
 
-        Assert.Contains("Deployment 'gpt-5.1' wasn't found", ex.Message);
+        Assert.Contains("blocklist 'personal-identifiers' doesn't exist", ex.Message);
         await _host.Agents.DidNotReceiveWithAnyArgs().RunAsync(default!, default!, default, default);
         await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
     }

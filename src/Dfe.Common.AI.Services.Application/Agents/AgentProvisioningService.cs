@@ -23,7 +23,7 @@ public sealed class AgentProvisioningService(
         var definitions = CommonAgents.All;
 
         // The guardrail goes on first, so the release checks test the agents behind it, as they'll run in production.
-        await ApplyGuardrailsAsync(cancellationToken);
+        await CheckGuardrailAsync(cancellationToken);
 
         logger.LogInformation(Messages.Log.ReleaseChecksStarting, definitions.Length, string.Join(", ", definitions.Select(a => a.Name)));
         var gate = await releaseGate.EvaluateAsync(definitions, cancellationToken);
@@ -72,19 +72,20 @@ public sealed class AgentProvisioningService(
     }
 
     /// <summary>
-    /// Creates or updates the Foundry guardrail and assigns it to every model deployment, so harmful content, jailbreaks,
-    /// instructions hidden in evidence and protected material are blocked before the model answers.
+    /// Confirms the Foundry guardrail, created in the Foundry portal, exists with its blocklists and is at least as strict
+    /// as the settings. The job never creates or changes it, so it needs only Reader on the Foundry resource. The library
+    /// puts the guardrail on every agent version it creates.
     /// </summary>
-    private async Task ApplyGuardrailsAsync(CancellationToken cancellationToken)
+    private async Task CheckGuardrailAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation(Messages.Log.ApplyingGuardrails, guardrailSettings.Name, string.Join(", ", guardrailSettings.Deployments));
+        logger.LogInformation(Messages.Log.CheckingGuardrail, guardrailSettings.Name, guardrailSettings.Targets);
 
-        var report = await guardrails.ApplyAsync(cancellationToken);
+        var report = await guardrails.CheckAsync(cancellationToken);
         if (!report.Passed)
         {
-            throw new GuardrailsNotAppliedException(report);
+            throw new GuardrailNotInPlaceException(report);
         }
 
-        logger.LogInformation(Messages.Log.GuardrailsApplied, report.Guardrail);
+        logger.LogInformation(Messages.Log.GuardrailInPlace, report.Guardrail);
     }
 }

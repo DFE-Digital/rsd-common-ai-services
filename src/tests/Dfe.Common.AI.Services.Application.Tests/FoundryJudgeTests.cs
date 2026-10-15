@@ -11,7 +11,7 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 /// </summary>
 public sealed class FoundryJudgeTests
 {
-    private const string JudgeModel = "gpt-5.1";
+    private const string JudgeModel = "tests/gpt-5.1";
 
     [Theory]
     [InlineData(JudgeModel, true)]

@@ -64,8 +64,8 @@ public static class Messages
         public static string BaselineUnreadable(string path, string reason) =>
             $"The baseline {path} isn't a readable evaluation report: {reason}";
 
-        public static string GuardrailsNotApplied(string guardrail, IEnumerable<string> problems) =>
-            $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned: " +
+        public static string GuardrailNotInPlace(string guardrail, IEnumerable<string> problems) =>
+            $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned. Create or fix it in the Foundry portal to match AiAgents:Guardrails: " +
             string.Join("; ", problems) + ".";
 
         public static string ProvisioningIncomplete(IEnumerable<AgentReference> provisioned, IEnumerable<string> failed) =>
@@ -111,9 +111,9 @@ public static class Messages
         public const string RunningTestCases = "Running {Count} test cases, up to {MaxParallel} at a time";
         public const string ReleaseChecksFinished = "Release checks finished in {Seconds:0.0} seconds";
         public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
-        public const string ApplyingGuardrails = "Applying Foundry guardrail {Guardrail} to model deployments: {Deployments}";
-        public const string GuardrailsApplied = "Foundry guardrail {Guardrail} is in place";
-        public const string GuardrailsNotApplied = "The Foundry guardrail isn't in place: {Reason}";
+        public const string CheckingGuardrail = "Checking Foundry guardrail {Guardrail} for {Targets}";
+        public const string GuardrailInPlace = "Foundry guardrail {Guardrail} is in place";
+        public const string GuardrailNotInPlace = "The Foundry guardrail isn't in place: {Reason}";
         public const string ComparingWithBaseline = "{AgentName} scores are compared with its baseline {Path}";
         public const string NoBaseline = "{AgentName} has no baseline at {Path}, so it's held to the minimum score only";
         public const string TestCaseBlockedByGuardrail = "{AgentName} / {CaseName}: blocked by the Foundry guardrail, which this case allows";

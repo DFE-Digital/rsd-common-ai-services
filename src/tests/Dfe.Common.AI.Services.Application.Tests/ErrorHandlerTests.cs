@@ -20,7 +20,7 @@ public sealed class ErrorHandlerTests
     {
         { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Ofsted, ["Failed."])]), ExitCode.ReleaseBlocked },
         {
-            new GuardrailsNotAppliedException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
+            new GuardrailNotInPlaceException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
             ExitCode.InvalidConfiguration
         },
         { new OperationCanceledException(), ExitCode.Cancelled },
@@ -86,5 +86,17 @@ public sealed class ErrorHandlerTests
         Assert.Contains($"Foundry has new versions of {AgentNames.Ofsted} 2", summary);
         Assert.Contains($"{AgentNames.Trust} weren't provisioned", summary);
         Assert.EndsWith("Cause: Forbidden.", summary);
+    }
+
+    [Fact]
+    public void A_judge_model_on_another_connection_is_invalid_configuration()
+    {
+        var settings = ProvisioningTestHost.RequiredSettings(judgeModel: "other-connection/gpt-5.1");
+
+        var ex = Assert.Throws<AgentConfigurationException>(() =>
+            new ServiceCollection().AddAgentProvisioning(new ConfigurationBuilder().AddInMemoryCollection(settings).Build()));
+
+        Assert.Contains("AiAgents:Evaluation:JudgeModel", ex.Message);
+        Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
     }
 }

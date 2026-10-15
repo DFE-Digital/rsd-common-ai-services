@@ -16,7 +16,7 @@ Provisions the common RSD AI services: Azure AI Search indexes (`terraform/`) an
 
 Each run:
 
-1. **Applies the guardrail** to the model deployments. If it can't, nothing else happens.
+1. **Checks the guardrail** created in the Foundry portal. If it's missing or weaker than the settings, nothing else happens.
 2. **Tests every agent** on a temporary copy (the release gate). If any agent fails, nothing is provisioned.
 3. **Provisions** a new Foundry version for each changed agent, and prints the versions to pin.
 
@@ -35,11 +35,10 @@ Set these as user secrets or environment variables (`AiAgents__Foundry__Endpoint
 | Setting | Value |
 | --- | --- |
 | `AiAgents:Foundry:Endpoint` | `https://<resource>.services.ai.azure.com/api/projects/<project>` |
-| `AiAgents:Foundry:DefaultModel` | `<connection>/<deployment>`, e.g. `OpenAIConnection/gpt-5.1` |
+| `AiAgents:Foundry:DefaultModel` | `<connection>/<model>`: the API Management model connection, e.g. `my-apim-connection/gpt-5.1`. Every agent, test copy and judge must use a model on this connection; any other is refused |
 | `AiAgents:Authentication:TenantId`, `ClientId`, `ClientSecret` | The service principal; see [Roles](#roles) |
 | `AiAgents:Guardrails:SubscriptionId`, `ResourceGroup` | Where the Foundry resource is. Its name comes from the endpoint |
-| `AiAgents:Guardrails:Deployments` | Deployment names only, no connection prefix, e.g. `[ "gpt-5.1" ]` |
-| `AiAgents:Evaluation:JudgeModel` | Optional. The deployment that scores answers, e.g. `OpenAIConnection/gpt-5.1` |
+| `AiAgents:Evaluation:JudgeModel` | Optional. The model that scores answers, on the same connection, e.g. `my-apim-connection/gpt-5.1`. Empty: no scores |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Required, unless `AiAgents:RequireTokenUsageTelemetry` is `false` (local only) |
 
 Release gate settings (`AgentQuality`):
@@ -80,7 +79,9 @@ The service principal in `AiAgents:Authentication` needs:
 | Role | Scope | Why |
 | --- | --- | --- |
 | **Foundry User** (formerly Azure AI User) | Foundry project | Create agent versions, run and delete test copies, judge calls |
-| **Cognitive Services Contributor** (or **Foundry Account Owner**) | Foundry resource | Create or change the guardrail and blocklist and attach them to deployments. The job writes only what differs, so once they match the settings, **Reader** is enough |
+| **Reader** | Foundry resource | Check the guardrail and blocklist. The job never creates or changes them. Agents get the guardrail when their versions are created, which Foundry User covers |
+
+Whoever creates the guardrail in the portal needs **Foundry Account Owner** on the Foundry resource.
 
 Apps that run the agents need **Foundry User** on the project, **Reader** on the Foundry resource and **Search Index
 Data Reader** on Azure AI Search. Application Insights needs no role (the connection string is enough).
@@ -88,7 +89,7 @@ Data Reader** on Azure AI Search. Application Insights needs no role (the connec
 ```sh
 FOUNDRY=/subscriptions/<subscription id>/resourceGroups/<resource group>/providers/Microsoft.CognitiveServices/accounts/<resource>
 az role assignment create --assignee <client id> --role "53ca6127-db72-4b80-b1b0-d745d6d5456d" --scope $FOUNDRY/projects/<project>   # Foundry User
-az role assignment create --assignee <client id> --role "Cognitive Services Contributor" --scope $FOUNDRY
+az role assignment create --assignee <client id> --role "Reader" --scope $FOUNDRY
 ```
 
 Use role IDs for Foundry roles while Microsoft renames them
@@ -168,17 +169,48 @@ copy a passing report into `src/Dfe.Common.AI.Services.Application/Baselines/`. 
 
 ## Guardrails
 
-The job creates or updates the guardrail (`AiAgents:Guardrails:Name`) and attaches it to every deployment in
-`Deployments`. Foundry then blocks, before the model answers:
+The guardrail is created in the Foundry portal (see [Create the guardrail](#create-the-guardrail)), not by this job.
+Models are reached through an API Management connection, so the guardrail goes on the agents (`"Targets": "Agents"`):
 
-- harmful content from `BlockFrom` severity (default `Medium`)
-- jailbreaks (`PromptShields`) and instructions hidden in evidence (`IndirectAttacks`)
-- protected material (`ProtectedMaterial`)
-- the `personal-identifiers` blocklist: pupil UPNs and National Insurance numbers
+- **Before testing,** the job checks the guardrail (`AiAgents:Guardrails:Name`) and the `personal-identifiers` blocklist
+  exist and are at least as strict as the settings. If not, nothing is tested or provisioned (exit code 3). A stricter
+  guardrail, or a blocklist with extra entries, passes.
+- **Every agent version** the library creates gets the guardrail, including release-gate copies and the judge. A
+  version without it is replaced, never reused.
+- **Foundry then blocks,** before the model answers: harmful content from `BlockFrom` (`Medium`), jailbreaks
+  (`PromptShields`), instructions hidden in evidence (`IndirectAttacks`), protected material (`ProtectedMaterial`), and
+  pupil UPNs and National Insurance numbers (the blocklist).
 
-The guardrail is on the deployment, so it applies to every app using it. `RequireAtStartup` is `false` here because this
-job creates the guardrail; apps that run the agents should leave it `true`. Load sensitive blocklist terms from Key
-Vault, not `appsettings.json`.
+The `AiAgents:Guardrails` settings describe the minimum the portal guardrail must meet; change both together. Apps that
+run the agents should leave `RequireAtStartup` `true`, so they won't start on agent versions without it.
+
+If the API Management gateway also blocks content itself, add its error to `AiAgents:Foundry:GatewayGuardrailErrors`
+(`Status` and `Code`, taken from one real blocked call), so those blocks count as guardrail blocks.
+
+### Create the guardrail
+
+Needs **Foundry Account Owner** on the Foundry resource. In [Foundry](https://ai.azure.com), open the project and
+select **Build** → **Guardrails**.
+
+1. **Blocklist:** on the **Blocklists** tab, select **Create blocklist**, name it `personal-identifiers`, and add these
+   two entries, each marked as **regex**: `[A-Z][0-9]{11}[0-9A-Z]` and `[A-CEGHJ-PR-TW-Z]{2}[0-9]{6}[A-D]`.
+2. **Guardrail:** select **Create Guardrail**. In **Add controls**, set each control below (select the risk, the
+   intervention points and **Block**, then **Add control**; for the four harm risks, add them again and **Confirm** the
+   override):
+
+   | Risk | Intervention points | Setting |
+   | --- | --- | --- |
+   | Hate, Sexual, Violence, Self-harm | User input and output | Block, **Medium** (or stricter) |
+   | User prompt attacks (jailbreak) | User input | Block |
+   | Indirect attacks | User input | Block |
+   | Protected material: text and code | Output | Block |
+   | Blocklist `personal-identifiers` | User input and output | Block |
+
+3. **Assign:** select **Next**. You can skip assigning models and agents: the library puts the guardrail on each new
+   agent version. Optionally add the current versions of the three agents.
+4. **Name:** select **Next**, name it `rsd-common-agents-guardrail`, then **Create**.
+5. **Run the job.** It checks the guardrail, then creates new versions of the agents carrying it.
+6. **Test it:** in the agent's playground, a prompt containing `A12345678901B` should be blocked.
 
 ## Monitoring
 

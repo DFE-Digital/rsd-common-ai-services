@@ -79,7 +79,7 @@ public sealed class TelemetryTests : IDisposable
         using var scores = new MetricCollector<double>(ReleaseGateMetrics.Scores);
         using var agents = new MetricCollector<long>(ReleaseGateMetrics.Agents);
 
-        await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build("judge-model").ProvisionAsync());
+        await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build("tests/judge-model").ProvisionAsync());
 
         foreach (var agent in AgentNames.All)
         {
