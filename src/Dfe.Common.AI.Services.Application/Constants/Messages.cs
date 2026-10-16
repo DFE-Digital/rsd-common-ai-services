@@ -1,5 +1,6 @@
-using System.Globalization;
-using Dfe.Common.AI.Services.Application.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
+using Dfe.Common.AI.Services.Application.ErrorHandling;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 
 namespace Dfe.Common.AI.Services.Application.Constants;
 
@@ -14,28 +15,18 @@ public static class Messages
     public static class AnswerChecks
     {
         public const string EmptyAnswer = "The answer is empty. Answer the question, or say plainly that the evidence doesn't answer it.";
-    }
 
-    /// <summary>
-    /// Contains messages related to release gate checks performed on agents before they are provisioned.
-    /// </summary>
-    public static class ReleaseGate
-    {
-        public static string NotScored(string metric) => $"The judge gave no {metric} score; the warnings above say why.";
+        public const string NoSources =
+            "End the answer with a line \"Sources:\" and then one line for each record you cited, written only as " +
+            "- [Evidence n].";
 
-        public static string NoTestCases(string directory) => $"No test cases found in {directory}.";
+        public const string LinksInSources =
+            "Write each line of the Sources section only as - [Evidence n], with no links, URLs or names: the record's " +
+            "name and link are added for you.";
 
-        public static string TestCaseFailed(string caseName, IEnumerable<string> failures) =>
-            $"Test case '{caseName}': {string.Join("; ", failures)}";
-
-        public static string ScoreBelowMinimum(string metric, double score, double minimum) =>
-            $"Average {metric} score {Score(score)} is below the minimum of {Score(minimum)}.";
-
-        /// <summary>Average scores for the log, e.g. "Groundedness 4.50, Relevance 4.25".</summary>
-        public static string Scores(IReadOnlyDictionary<string, double> scores) =>
-            scores.Count == 0 ? "none" : string.Join(", ", scores.OrderBy(s => s.Key).Select(s => $"{s.Key} {Score(s.Value)}"));
-
-        private static string Score(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+        public static string SourcesMissing(IEnumerable<int> evidenceNumbers) =>
+            "Add these cited records to the Sources section: " +
+            string.Join(", ", evidenceNumbers.Select(n => $"[Evidence {n}]")) + ".";
     }
 
     /// <summary>
@@ -46,6 +37,23 @@ public static class Messages
         /// <summary>Which settings file couldn't be read, and where the parser stopped.</summary>
         public static string SettingsFileUnreadable(Exception exception) =>
             $"{exception.Message} {exception.GetBaseException().Message}";
+
+        public const string ApplicationInsightsMissing =
+            "APPLICATIONINSIGHTS_CONNECTION_STRING isn't set, so token usage, logs and release-gate results can't be sent to " +
+            "Application Insights. Set it to the Application Insights connection string, or, for local development " +
+            "only, set AiAgents:RequireTokenUsageTelemetry to false.";
+
+        public static string GuardrailNotInPlace(string guardrail, IEnumerable<string> problems) =>
+            $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned. Create or fix it in the Foundry portal to match AiAgents:Guardrails: " +
+            string.Join("; ", problems) + ".";
+
+        public static string ProvisioningIncomplete(IEnumerable<AgentReference> provisioned, IEnumerable<string> failed) =>
+            $"Provisioning stopped part way. Foundry has new versions of {string.Join(", ", provisioned.Select(a => $"{a.Name} {a.Version}"))}, " +
+            $"which no app has been told about; {string.Join(", ", failed)} weren't provisioned. Fix the cause and run again.";
+
+        /// <summary>The one line the job writes to the console when it fails, as its logs are in Application Insights.</summary>
+        public static string RunFailed(ExitCode exitCode, string reason) =>
+            $"Failed with exit code {(int)exitCode} ({exitCode}): {reason}";
 
         public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
             "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
@@ -58,7 +66,7 @@ public static class Messages
     public static class Log
     {
         public const string ReleaseBlocked = "Agent release blocked by gate: {Problems}";
-        public const string LeftoverTestAgentsNotDeleted = "Couldn't check Foundry for leftover test agents; the next run will try again";
+        public const string ProvisioningIncomplete = "Provisioning stopped part way; new versions no app knows about: {Provisioned}; not provisioned: {Failed}";
         public const string InvalidConfiguration = "The settings are invalid: {Reason}";
         public const string AuthenticationFailed = "Couldn't sign in to Azure; check AiAgents:Authentication: {Reason}";
         public const string AzureRequestFailed = "Azure refused a request ({Status} {ErrorCode}); check the service principal's roles: {Reason}";
@@ -68,15 +76,10 @@ public static class Messages
 
         // Progress: Information, or Warning for a failure. Turned off by raising the log level (see README).
         public const string ReleaseChecksStarting = "Running release checks for {Count} agents: {Agents}";
-        public const string JudgeOn = "Answers are scored by judge model {JudgeModel}; each metric must average at least {MinimumScore}";
-        public const string JudgeOff = "No judge model is set, so answers are checked against their test cases only";
-        public const string TestingAgent = "Testing {AgentName} with {Count} test cases on a temporary copy";
-        public const string NoTestCases = "{AgentName} has no test cases in {Directory}";
-        public const string TestCasePassed = "{AgentName} / {CaseName}: passed";
-        public const string TestCaseFailed = "{AgentName} / {CaseName}: failed: {Failures}";
-        public const string AgentScores = "{AgentName} average judge scores: {Scores}";
-        public const string AgentPassed = "{AgentName} passed its release checks. Report: {ReportPath}";
-        public const string AgentFailed = "{AgentName} failed {Count} release checks. Report: {ReportPath}";
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
+        public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
+        public const string CheckingGuardrail = "Checking Foundry guardrail {Guardrail} for {Targets}";
+        public const string GuardrailInPlace = "Foundry guardrail {Guardrail} is in place";
+        public const string GuardrailNotInPlace = "The Foundry guardrail isn't in place: {Reason}";
     }
 }

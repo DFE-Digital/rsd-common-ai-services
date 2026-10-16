@@ -5,6 +5,6 @@ namespace Dfe.Common.AI.Services.Application.Exceptions;
 /// model or credentials.
 /// </summary>
 /// <param name="message">What is missing or invalid.</param>
-/// <param name="innerException">The agents library's validation error.</param>
-public sealed class AgentConfigurationException(string message, Exception innerException)
+/// <param name="innerException">The agents library's validation error, if it found the problem.</param>
+public sealed class AgentConfigurationException(string message, Exception? innerException = null)
     : InvalidOperationException(message, innerException);

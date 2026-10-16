@@ -6,9 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-using var errorLogging = LoggerFactory.Create(logging => logging.AddSimpleConsole(o => o.SingleLine = true));
-var errorLogger = errorLogging.CreateLogger<Program>();
+IHost? host = null;
 
 try
 {
@@ -21,7 +21,7 @@ try
 
     builder.Services.AddAgentProvisioning(builder.Configuration);
 
-    using var host = builder.Build();
+    host = builder.Build();
     await host.StartAsync();
 
     var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -43,5 +43,15 @@ try
 }
 catch (Exception ex)
 {
-    return (int)ErrorHandler.Handle(ex, errorLogger);
+    // Before the host exists there's nowhere to log to; the line below still says why.
+    var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? (ILogger)NullLogger.Instance;
+    var exitCode = ErrorHandler.Handle(ex, logger);
+
+    // Logs go to Application Insights, so say why here too, for whoever ran the job.
+    await Console.Error.WriteLineAsync(ErrorHandler.Summarise(exitCode, ex));
+    return (int)exitCode;
+}
+finally
+{
+    host?.Dispose();
 }

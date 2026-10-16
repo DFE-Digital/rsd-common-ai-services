@@ -1,13 +1,16 @@
 using Azure;
 using Azure.Identity;
+using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.Application.ValueObjects;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Dfe.Common.AI.Services.Application.IntegrationTests;
+namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class ErrorHandlerTests
 {
@@ -16,11 +19,20 @@ public sealed class ErrorHandlerTests
     public static TheoryData<Exception, ExitCode> Failures => new()
     {
         { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Ofsted, ["Failed."])]), ExitCode.ReleaseBlocked },
+        {
+            new GuardrailNotInPlaceException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
+            ExitCode.InvalidConfiguration
+        },
         { new OperationCanceledException(), ExitCode.Cancelled },
         { new InvalidOperationException(FoundryFailure, new AuthenticationFailedException("Invalid client secret.")), ExitCode.InvalidConfiguration },
         { new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
         { new AggregateException(new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
         { new NullReferenceException(), ExitCode.Failed },
+        {
+            new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")], [AgentNames.Trust],
+                new RequestFailedException(403, "Forbidden.")),
+            ExitCode.AzureRequestFailed
+        },
     };
 
     [Theory]
@@ -52,6 +64,39 @@ public sealed class ErrorHandlerTests
             new ServiceCollection().AddAgentProvisioning(new ConfigurationBuilder().Build()));
 
         Assert.Contains("AiAgents:Foundry:Endpoint", ex.Message);
+        Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
+    }
+
+    [Fact]
+    public void Summarises_a_failure_in_one_line_with_its_cause()
+    {
+        var ex = new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden."));
+
+        Assert.Equal("Failed with exit code 4 (AzureRequestFailed): Forbidden.", ErrorHandler.Summarise(ExitCode.AzureRequestFailed, ex));
+    }
+
+    [Fact]
+    public void Summarises_partial_provisioning_with_the_new_versions_and_the_cause()
+    {
+        var ex = new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")],
+            [AgentNames.Trust], new RequestFailedException(403, "Forbidden."));
+
+        var summary = ErrorHandler.Summarise(ExitCode.AzureRequestFailed, ex);
+
+        Assert.Contains($"Foundry has new versions of {AgentNames.Ofsted} 2", summary);
+        Assert.Contains($"{AgentNames.Trust} weren't provisioned", summary);
+        Assert.EndsWith("Cause: Forbidden.", summary);
+    }
+
+    [Fact]
+    public void A_judge_model_on_another_connection_is_invalid_configuration()
+    {
+        var settings = ProvisioningTestHost.RequiredSettings(judgeModel: "other-connection/gpt-5.1");
+
+        var ex = Assert.Throws<AgentConfigurationException>(() =>
+            new ServiceCollection().AddAgentProvisioning(new ConfigurationBuilder().AddInMemoryCollection(settings).Build()));
+
+        Assert.Contains("AiAgents:Evaluation:JudgeModel", ex.Message);
         Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
     }
 }

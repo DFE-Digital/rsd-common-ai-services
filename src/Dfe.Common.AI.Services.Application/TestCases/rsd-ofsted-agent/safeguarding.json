@@ -6,5 +6,6 @@
   ],
   "mustNotMention": [
     "not effective"
-  ]
+  ],
+  "group": "requires-improvement"
 }

@@ -1,10 +1,9 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.Application.Options;
+using Dfe.Common.AI.Services.Application.Extensions;
 using Dfe.Common.AI.Services.Application.QualityGate;
-using Dfe.Common.AI.Services.Application.QualityGate.Interfaces;
-using GovUK.Dfe.CoreLibs.AiAgents;
+using GovUK.Dfe.AI.Agents.Builders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +11,8 @@ namespace Dfe.Common.AI.Services.Application;
 
 public static class DependencyInjection
 {
+    private const string JudgeModelKey = "AiAgents:Evaluation:JudgeModel";
+
     /// <summary>
     /// Registers the common managed agents and the service that provisions them in Foundry.
     /// </summary>
@@ -20,12 +21,11 @@ public static class DependencyInjection
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddAgentProvisioning(this IServiceCollection services, IConfiguration configuration)
     {
-        var qualityOptions = configuration.GetSection(AgentQualityOptions.SectionName).Get<AgentQualityOptions>()
-            ?? new AgentQualityOptions();
+        var hasJudge = !string.IsNullOrWhiteSpace(configuration[JudgeModelKey]);
 
         try
         {
-            services.AddAiAgents(configuration, agents => ConfigureAgents(agents, qualityOptions));
+            services.AddAgents(configuration, agents => ConfigureAgents(agents, hasJudge));
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
         {
@@ -33,22 +33,26 @@ public static class DependencyInjection
             throw new AgentConfigurationException(ex.Message, ex);
         }
 
-        services.AddSingleton(qualityOptions);
-        services.AddSingleton<IAgentReleaseGate, AgentReleaseGate>();
+        services.AddObservability(configuration);
         services.AddSingleton<IAgentProvisioningService, AgentProvisioningService>();
 
         return services;
     }
 
-    private static void ConfigureAgents(AiAgentsBuilder agents, AgentQualityOptions quality)
+    private static void ConfigureAgents(AgentsBuilder agents, bool hasJudge)
     {
-        agents.AddAgents(CommonAgents.All);
+        // The release gate's settings are under AiAgents:Evaluation:ReleaseGate. Cases expecting one of the prompts'
+        // fixed refusals are checked by that sentence and left out of the scores.
+        agents.AddAgents(CommonAgents.All)
+            .AddGuardrails()
+            .AddReleaseGate(gate => gate.RefusalPhrases.AddRange(FixedResponses.Refusals));
 
-        if (quality.HasJudge && quality.JudgeModel is { } judgeModel)
+        if (hasJudge)
         {
-            // Scores test answers for groundedness in the evidence and relevance to the prompt (JudgeMetrics). A
-            // sample rate of 0 scores only release-gate runs; live sampling belongs in the apps that run the agents.
-            agents.AddQualityEvaluation(judgeModel, sampleRate: 0);
+            // Scores test answers for groundedness in the evidence and relevance to the prompt. Its settings are under
+            // AiAgents:Evaluation; a SampleRate of 0 scores only release-gate answers, as live sampling belongs in the
+            // apps that run the agents.
+            agents.AddQualityEvaluation();
         }
     }
 }
