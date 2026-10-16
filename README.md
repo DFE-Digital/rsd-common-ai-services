@@ -10,8 +10,8 @@ Provisions the common RSD AI services: Azure AI Search indexes (`terraform/`) an
 | `rsd-ofsted-agent` | `Prompts/Ofsted.md` | `TestCases/rsd-ofsted-agent/` |
 | `rsd-trust-agent` | `Prompts/Trust.md` | `TestCases/rsd-trust-agent/` |
 
-- `Dfe.Common.AI.Services.Application`: agents, prompts, test cases and all logic, built on `GovUK.Dfe.AI.Agents` with
-  its `Evaluation` and `Guardrails` add-ons.
+- `Dfe.Common.AI.Services.Application`: agents, prompts, test cases and the provisioning logic, built on
+  `GovUK.Dfe.AI.Agents` with its `Evaluation` (judge and release gate) and `Guardrails` add-ons.
 - `Dfe.Common.Ai.Services.App`: runs it. It never runs the agents for real use; other apps do, at pinned versions.
 
 Each run:
@@ -24,7 +24,7 @@ Each run:
 
 ```sh
 dotnet run --project src/Dfe.Common.Ai.Services.App   # provisions in the configured Foundry project
-dotnet test                                           # integration tests; no Azure calls
+dotnet test                                           # tests; no Azure calls
 ```
 
 ### Settings
@@ -41,7 +41,8 @@ Set these as user secrets or environment variables (`AiAgents__Foundry__Endpoint
 | `AiAgents:Evaluation:JudgeModel` | Optional. The model that scores answers, on the same connection, e.g. `my-apim-connection/gpt-5.1`. Empty: no scores |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Required, unless `AiAgents:RequireTokenUsageTelemetry` is `false` (local only) |
 
-Release gate settings (`AgentQuality`):
+Release gate settings (`AiAgents:Evaluation:ReleaseGate`). The gate itself is the AI agents library's
+(`AddReleaseGate()` in the Evaluation package); this app adds the prompts' fixed refusals as `RefusalPhrases`:
 
 | Setting | Value | Purpose |
 | --- | --- | --- |
@@ -50,6 +51,7 @@ Release gate settings (`AgentQuality`):
 | `MaxGroupGap` | 0.5 | Largest score gap between test case groups. Remove it to turn the check off |
 | `Repeats` | 1 | Runs per test case; scores are averaged. Each repeat costs another run and judge call |
 | `MaxParallelTestRuns` | 4 | Test cases run at once. Keep within the deployment's quota |
+| `PublishToFoundry` | false | Also sends each release's answers to a Foundry evaluation (see [Results in Foundry](#results-in-foundry)) |
 
 ### Output
 
@@ -79,7 +81,10 @@ The service principal in `AiAgents:Authentication` needs:
 | Role | Scope | Why |
 | --- | --- | --- |
 | **Foundry User** (formerly Azure AI User) | Foundry project | Create agent versions, run and delete test copies, judge calls |
-| **Reader** | Foundry resource | Check the guardrail and blocklist. The job never creates or changes them. Agents get the guardrail when their versions are created, which Foundry User covers |
+| **Reader** | Foundry resource | Check the guardrail and blocklist, which the job never creates or changes |
+
+With `PublishToFoundry`, give **Foundry User** on the Foundry **resource** instead of both: Microsoft requires it there for
+evaluations that call a model, and it includes Reader.
 
 Whoever creates the guardrail in the portal needs **Foundry Account Owner** on the Foundry resource.
 
@@ -162,6 +167,18 @@ One JSON file per case, with fictional data:
 - **Tests keep cases honest:** `dotnet test` fails if a case requires text its evidence, question or prompt can't
   produce, for example after rewording a fixed response.
 
+### Results in Foundry
+
+With `AiAgents:Evaluation:ReleaseGate:PublishToFoundry`, each release's answers are also scored by Foundry's built-in **groundedness** and
+**relevance** evaluators, using the judge model (`AiAgents:Evaluation:JudgeModel`, else `AiAgents:Foundry:DefaultModel`;
+a `<connection>/<model>` works). Results are on the Foundry project's **Evaluations** page: one evaluation per agent,
+named `<agent> release gate (<model>)`, with one run per release, so releases can be compared. The log links each run.
+
+- It doesn't affect the release: the gate's own checks decide. Runs finish in Foundry after the job ends.
+- Only answered cases are sent, not refusal cases (relevance marks refusals as irrelevant) or guardrail blocks.
+- The prompt, evidence and answer of each case are stored in Foundry; test data is fictional.
+- If Foundry can't be reached, a warning is logged and the job carries on.
+
 ### Reports and baselines
 
 Each run writes `evaluation-reports/<agent>.json` with every answer, score and failure. To set or raise an agent's bar,
@@ -220,21 +237,21 @@ evidence or answers. Apps that run the agents record the same metrics, so one wo
 
 | Area | Metrics |
 | --- | --- |
-| Quality | `dfe.release_gate.score`, `dfe.release_gate.test_cases`, `dfe.release_gate.agents` (this job); `dfe.ai_agents.evaluation.score` (live answers, apps with `SampleRate` above 0) |
+| Quality | `dfe.ai_agents.release_gate.score`, `.test_cases`, `.agents` (this job); `dfe.ai_agents.evaluation.score` (live answers, apps with `SampleRate` above 0) |
 | Performance | `gen_ai.invoke_agent.duration` (`error.type` on failure), `gen_ai.invoke_agent.inference_calls` (above 1 means a retry), `gen_ai.invoke_workflow.duration`, `gen_ai.execute_tool.duration` |
 | Tokens and capacity | `gen_ai.client.inference.usage.input_tokens` / `output_tokens`, `dfe.ai_agents.workflow.tokens`, `dfe.ai_agents.tokens.remaining`, `dfe.ai_agents.tokens.low`, `dfe.ai_agents.run_slot.wait.duration` |
-| Cost | `dfe.ai_agents.cost`, `dfe.ai_agents.workflow.cost`; recorded only once `AiAgents:Pricing` has each model's price per 1,000 tokens |
+| Cost | `dfe.ai_agents.cost`, `dfe.ai_agents.workflow.cost`, from `AiAgents:Pricing` (GBP per 1,000 tokens, per model) |
 | Safety | `dfe.ai_agents.guardrail.blocks`, `dfe.ai_agents.tool.approvals` |
 
-This job has no tools or workflows, so it records neither's metrics. Judge calls aren't agent runs, so their tokens and
-cost aren't counted.
+This job has no tools or workflows, so it records neither's metrics. The judge runs as an agent on the model connection,
+so its tokens and cost are counted with the rest.
 
 Useful queries (Application Insights → Logs):
 
 ```kusto
 // Release-gate scores per agent over time; a drop means a prompt or model change made answers worse
 customMetrics
-| where name == "dfe.release_gate.score"
+| where name == "dfe.ai_agents.release_gate.score"
 | summarize score = sum(valueSum) / sum(valueCount) by agent = tostring(customDimensions["gen_ai.agent.name"]),
     metric = tostring(customDimensions["gen_ai.evaluation.name"]), bin(timestamp, 1d)
 
@@ -251,7 +268,7 @@ customMetrics
 | summarize lowestRemaining = minif(valueMin, name == "dfe.ai_agents.tokens.remaining"),
     lowResponses = sumif(valueSum, name == "dfe.ai_agents.tokens.low") by bin(timestamp, 1h)
 
-// Cost per app and agent per day (needs Pricing)
+// Cost per app and agent per day
 customMetrics
 | where name == "dfe.ai_agents.cost"
 | summarize cost = sum(valueSum) by app = tostring(customDimensions["dfe.ai_agents.application"]),

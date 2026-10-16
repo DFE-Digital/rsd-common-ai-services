@@ -1,6 +1,6 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
-using Dfe.Common.AI.Services.Application.Options;
+using GovUK.Dfe.AI.Agents.Evaluation.Options;
 using Dfe.Common.AI.Services.Application.QualityGate;
 using GovUK.Dfe.AI.Agents.Quality;
 using GovUK.Dfe.AI.Agents.ValueObjects;
@@ -10,7 +10,7 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 public sealed class CommonAgentsTests
 {
     private static readonly string TestCasesRoot =
-        Path.Combine(AppContext.BaseDirectory, new AgentQualityOptions().TestCasesDirectory);
+        Path.Combine(AppContext.BaseDirectory, new ReleaseGateSettings().TestCasesDirectory);
 
     public static TheoryData<string> Names => [.. AgentNames.All];
 

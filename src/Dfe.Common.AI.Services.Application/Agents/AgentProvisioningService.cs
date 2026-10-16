@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.Application.QualityGate.Interfaces;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.Options;
 using GovUK.Dfe.AI.Agents.Guardrails.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;

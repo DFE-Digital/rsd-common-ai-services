@@ -1,4 +1,4 @@
-using GovUK.Dfe.AI.Agents.Evaluation.Quality;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using GovUK.Dfe.AI.Agents.Quality.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

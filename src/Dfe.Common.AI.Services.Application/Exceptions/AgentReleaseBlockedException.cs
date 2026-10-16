@@ -1,5 +1,5 @@
 using Dfe.Common.AI.Services.Application.Constants;
-using Dfe.Common.AI.Services.Application.ValueObjects;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 
 namespace Dfe.Common.AI.Services.Application.Exceptions;
 

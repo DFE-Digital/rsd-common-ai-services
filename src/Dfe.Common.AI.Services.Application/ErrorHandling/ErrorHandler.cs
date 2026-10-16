@@ -2,7 +2,9 @@ using Azure;
 using Azure.Identity;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using Microsoft.Extensions.Logging;
+using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
 
 namespace Dfe.Common.AI.Services.Application.ErrorHandling;
 
@@ -24,6 +26,11 @@ public static class ErrorHandler
                 logger.LogError(Messages.Log.ProvisioningIncomplete,
                     string.Join(", ", incomplete.Provisioned.Select(a => $"{a.Name} {a.Version}")), string.Join(", ", incomplete.Failed));
                 return Handle(incomplete.InnerException!, logger);
+
+            // A release-gate file, such as a baseline, that can't be read.
+            case ReleaseGateException releaseGate:
+                logger.LogError(Messages.Log.InvalidConfiguration, releaseGate.Message);
+                return ExitCode.InvalidConfiguration;
 
             case AgentConfigurationException configuration:
                 logger.LogError(Messages.Log.InvalidConfiguration, configuration.Message);

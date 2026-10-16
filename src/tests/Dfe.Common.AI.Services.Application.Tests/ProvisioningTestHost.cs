@@ -1,9 +1,8 @@
-using System.Globalization;
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
-using Dfe.Common.AI.Services.Application.QualityGate;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
@@ -15,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
+using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Tests;
 
@@ -101,19 +101,6 @@ internal sealed class ProvisioningTestHost : IDisposable
         }
     }
 
-    /// <summary>Saves a baseline report for every agent, in which each judge metric averaged <paramref name="score"/>.</summary>
-    public void SaveBaselineForEveryAgent(double score, string caseName = "case")
-    {
-        Directory.CreateDirectory(BaselinesDirectory);
-        foreach (var agent in CommonAgents.All)
-        {
-            var report = new AgentEvaluationReport(agent.Name,
-                [new AgentTestResult(caseName, "398 pupils are on roll [Evidence 1].", [], JudgeMetrics.All.ToDictionary(m => m, _ => score))]);
-            File.WriteAllText(Path.Combine(BaselinesDirectory, $"{agent.Name}.json"),
-                JsonSerializer.Serialize(report, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
-        }
-    }
-
     /// <summary>Writes text that isn't an evaluation report as an agent's baseline.</summary>
     public void SaveUnreadableBaseline(string agentName)
     {
@@ -126,26 +113,19 @@ internal sealed class ProvisioningTestHost : IDisposable
     /// removed to keep assertions readable.
     /// </summary>
     public IReadOnlyList<LogLine> Logs =>
-        [.. _provider!.GetFakeLogCollector().GetSnapshot().Select(r => new LogLine(r.Level, r.Message.Replace("\"", "")))];
+        [.. _provider!.GetFakeLogCollector().GetSnapshot().Select(r => new LogLine(r.Level, r.Message.Replace("\"", ""), r.Exception))];
 
     /// <param name="judgeModel">The judge model, or null for no judge.</param>
     /// <param name="applicationLogLevel">
     /// Sets <c>Serilog:MinimumLevel:Default</c>, which the app's appsettings.json uses for its own and the library's logs.
     /// </param>
-    /// <param name="maxParallelTestRuns">Sets <c>AgentQuality:MaxParallelTestRuns</c>.</param>
-    /// <param name="repeats">Sets <c>AgentQuality:Repeats</c>.</param>
-    /// <param name="maxGroupGap">Sets <c>AgentQuality:MaxGroupGap</c>, or leaves the group check off when null.</param>
-    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information",
-        int maxParallelTestRuns = 4, int repeats = 1, double? maxGroupGap = null)
+    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information")
     {
         var settings = RequiredSettings(judgeModel);
         settings["Serilog:MinimumLevel:Default"] = applicationLogLevel;
-        settings["AgentQuality:TestCasesDirectory"] = TestCasesDirectory;
-        settings["AgentQuality:ReportsDirectory"] = ReportsDirectory;
-        settings["AgentQuality:MaxParallelTestRuns"] = maxParallelTestRuns.ToString(CultureInfo.InvariantCulture);
-        settings["AgentQuality:Repeats"] = repeats.ToString(CultureInfo.InvariantCulture);
-        settings["AgentQuality:BaselinesDirectory"] = BaselinesDirectory;
-        settings["AgentQuality:MaxGroupGap"] = maxGroupGap?.ToString(CultureInfo.InvariantCulture);
+        settings["AiAgents:Evaluation:ReleaseGate:TestCasesDirectory"] = TestCasesDirectory;
+        settings["AiAgents:Evaluation:ReleaseGate:ReportsDirectory"] = ReportsDirectory;
+        settings["AiAgents:Evaluation:ReleaseGate:BaselinesDirectory"] = BaselinesDirectory;
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
         // The fake logger stands in for Application Insights: added after Serilog, which passes every event to it.
@@ -171,4 +151,4 @@ internal sealed class ProvisioningTestHost : IDisposable
     }
 }
 
-internal sealed record LogLine(LogLevel Level, string Message);
+internal sealed record LogLine(LogLevel Level, string Message, Exception? Exception = null);

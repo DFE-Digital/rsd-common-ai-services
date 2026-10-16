@@ -3,7 +3,7 @@ using Azure.Identity;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.Application.ValueObjects;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
