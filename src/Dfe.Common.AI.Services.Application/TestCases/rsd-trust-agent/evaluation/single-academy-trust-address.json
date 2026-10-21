@@ -1,0 +1,9 @@
+{
+  "prompt": "Where is trust TR99005 based, and how many academies does it have in the pipeline?",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ntrust_address: 2 Hill Lane, Westshire\nnumber_in_trust: 1\npipeline_count: 0",
+  "mustMention": [
+    "2 Hill Lane"
+  ],
+  "mustNotMention": [],
+  "group": "single-academy-trust"
+}

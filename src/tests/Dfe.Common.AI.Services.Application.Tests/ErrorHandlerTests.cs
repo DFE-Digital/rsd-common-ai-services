@@ -14,11 +14,11 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 
 public sealed class ErrorHandlerTests
 {
-    private const string FoundryFailure = $"Failed to get or create Foundry agent '{AgentNames.Ofsted}'.";
+    private const string FoundryFailure = $"Failed to get or create Foundry agent '{AgentNames.Establishment}'.";
 
     public static TheoryData<Exception, ExitCode> Failures => new()
     {
-        { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Ofsted, ["Failed."])]), ExitCode.ReleaseBlocked },
+        { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Establishment, ["Failed."])]), ExitCode.ReleaseBlocked },
         {
             new GuardrailNotInPlaceException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
             ExitCode.InvalidConfiguration
@@ -29,7 +29,7 @@ public sealed class ErrorHandlerTests
         { new AggregateException(new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },
         { new NullReferenceException(), ExitCode.Failed },
         {
-            new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")], [AgentNames.Trust],
+            new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Establishment, AgentNames.Establishment, "2")], [AgentNames.Trust],
                 new RequestFailedException(403, "Forbidden.")),
             ExitCode.AzureRequestFailed
         },
@@ -78,12 +78,12 @@ public sealed class ErrorHandlerTests
     [Fact]
     public void Summarises_partial_provisioning_with_the_new_versions_and_the_cause()
     {
-        var ex = new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Ofsted, AgentNames.Ofsted, "2")],
+        var ex = new AgentProvisioningIncompleteException([new AgentReference(AgentNames.Establishment, AgentNames.Establishment, "2")],
             [AgentNames.Trust], new RequestFailedException(403, "Forbidden."));
 
         var summary = ErrorHandler.Summarise(ExitCode.AzureRequestFailed, ex);
 
-        Assert.Contains($"Foundry has new versions of {AgentNames.Ofsted} 2", summary);
+        Assert.Contains($"Foundry has new versions of {AgentNames.Establishment} 2", summary);
         Assert.Contains($"{AgentNames.Trust} weren't provisioned", summary);
         Assert.EndsWith("Cause: Forbidden.", summary);
     }

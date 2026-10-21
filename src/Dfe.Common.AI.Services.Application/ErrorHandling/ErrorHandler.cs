@@ -18,53 +18,55 @@ public static class ErrorHandler
         switch (exception)
         {
             case AgentReleaseBlockedException blocked:
-                logger.LogError(Messages.Log.ReleaseBlocked, blocked.Message);
+                logger.ReleaseBlocked(blocked.Message);
                 return ExitCode.ReleaseBlocked;
 
             // Report the versions Foundry now has, then handle why provisioning stopped.
             case AgentProvisioningIncompleteException incomplete:
-                logger.LogError(Messages.Log.ProvisioningIncomplete,
-                    string.Join(", ", incomplete.Provisioned.Select(a => $"{a.Name} {a.Version}")), string.Join(", ", incomplete.Failed));
+                var provisioned = string.Join(", ", incomplete.Provisioned.Select(a => $"{a.Name} {a.Version}"));
+                var notProvisioned = string.Join(", ", incomplete.Failed);
+                logger.ProvisioningIncomplete(provisioned, notProvisioned);
                 return Handle(incomplete.InnerException!, logger);
 
             // A release-gate file, such as a baseline, that can't be read.
             case ReleaseGateException releaseGate:
-                logger.LogError(Messages.Log.InvalidConfiguration, releaseGate.Message);
+                logger.InvalidConfiguration(releaseGate.Message);
                 return ExitCode.InvalidConfiguration;
 
             case AgentConfigurationException configuration:
-                logger.LogError(Messages.Log.InvalidConfiguration, configuration.Message);
+                logger.InvalidConfiguration(configuration.Message);
                 return ExitCode.InvalidConfiguration;
 
             // The guardrail or a blocklist is missing in Foundry, or weaker than the settings.
             case GuardrailNotInPlaceException guardrails:
-                logger.LogError(Messages.Log.GuardrailNotInPlace, guardrails.Message);
+                logger.GuardrailNotInPlace(guardrails.Message);
                 return ExitCode.InvalidConfiguration;
 
             // A settings file, such as appsettings.json, that isn't valid JSON.
             case InvalidDataException { InnerException: FormatException } settingsFile:
-                logger.LogError(Messages.Log.InvalidConfiguration, Messages.Errors.SettingsFileUnreadable(settingsFile));
+                var unreadable = Messages.Errors.SettingsFileUnreadable(settingsFile);
+                logger.InvalidConfiguration(unreadable);
                 return ExitCode.InvalidConfiguration;
 
             case OperationCanceledException:
-                logger.LogWarning(Messages.Log.Cancelled);
+                logger.Cancelled();
                 return ExitCode.Cancelled;
         }
 
         // Azure SDK failures usually arrive wrapped by the agents library, so look through the inner exceptions.
         if (Find<AuthenticationFailedException>(exception) is { } authentication)
         {
-            logger.LogError(Messages.Log.AuthenticationFailed, authentication.Message);
+            logger.AuthenticationFailed(authentication.Message);
             return ExitCode.InvalidConfiguration;
         }
 
         if (Find<RequestFailedException>(exception) is { } request)
         {
-            logger.LogError(Messages.Log.AzureRequestFailed, request.Status, request.ErrorCode, request.Message);
+            logger.AzureRequestFailed(request.Status, request.ErrorCode, request.Message);
             return ExitCode.AzureRequestFailed;
         }
 
-        logger.LogCritical(exception, Messages.Log.UnexpectedError);
+        logger.UnexpectedError(exception);
         return ExitCode.Failed;
     }
 

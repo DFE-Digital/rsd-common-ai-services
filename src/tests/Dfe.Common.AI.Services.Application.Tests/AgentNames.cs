@@ -6,8 +6,7 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 internal static class AgentNames
 {
     public const string Establishment = "rsd-establishment-agent";
-    public const string Ofsted = "rsd-ofsted-agent";
     public const string Trust = "rsd-trust-agent";
 
-    public static IReadOnlyList<string> All { get; } = [Establishment, Ofsted, Trust];
+    public static IReadOnlyList<string> All { get; } = [Establishment, Trust];
 }

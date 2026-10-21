@@ -6,17 +6,20 @@ namespace Dfe.Common.AI.Services.Application.Agents;
 /// Provisioned agents that are common to all DfE's RSD services, with their system prompts and other settings.
 /// </summary>
 /// <remarks>
-/// <see cref="AgentDefinition.RequireCitations"/> and <see cref="AgentDefinition.Validate"/> are applied when an
-/// agent runs, not stored in its Foundry version, so apps that run these agents must use these definitions.
+/// <see cref="AgentDefinition.RequiredCitations"/> and <see cref="AgentDefinition.Validate"/> are applied when an
+/// agent runs, not stored in its Foundry version, so apps that run these agents must use these definitions. An app adds
+/// its own checks with <see cref="AgentChecks.WithCheck"/> or <see cref="AgentChecks.ExpectingMention"/>, never by
+/// replacing <see cref="AgentDefinition.Validate"/>, which would drop the common checks.
 /// </remarks>
 public static class CommonAgents
 {
-    public static AgentDefinition[] All =>
-    [
-        Grounded("rsd-establishment-agent", systemPromptKey: "Establishment"),
-        Grounded("rsd-ofsted-agent", systemPromptKey: "Ofsted"),
-        Grounded("rsd-trust-agent", systemPromptKey: "Trust"),
-    ];
+    /// <summary>Answers questions about schools and other establishments, and their Ofsted inspections.</summary>
+    public static AgentDefinition Establishment => Grounded("rsd-establishment-agent", systemPromptKey: "Establishment");
+
+    /// <summary>Answers questions about academy trusts and the establishments they run.</summary>
+    public static AgentDefinition Trust => Grounded("rsd-trust-agent", systemPromptKey: "Trust");
+
+    public static AgentDefinition[] All => [Establishment, Trust];
 
     /// <summary>
     /// An agent that must cite its evidence (the library's <c>RequiredCitations</c>, on by default), list the sources

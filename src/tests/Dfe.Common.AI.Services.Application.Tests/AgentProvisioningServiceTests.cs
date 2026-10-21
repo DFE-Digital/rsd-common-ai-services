@@ -4,6 +4,7 @@ using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.QualityGate;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Exceptions;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
 using GovUK.Dfe.AI.Agents.Quality;
@@ -55,9 +56,9 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         var ex = await Assert.ThrowsAsync<AgentProvisioningIncompleteException>(() => _host.Build().ProvisionAsync());
 
-        Assert.Equal([AgentNames.Establishment, AgentNames.Ofsted], ex.Provisioned.Select(a => a.Name));
+        Assert.Equal([AgentNames.Establishment], ex.Provisioned.Select(a => a.Name));
         Assert.Equal([AgentNames.Trust], ex.Failed);
-        Assert.Contains($"{AgentNames.Establishment} 2, {AgentNames.Ofsted} 2", ex.Message);
+        Assert.Contains($"Foundry has new versions of {AgentNames.Establishment} 2", ex.Message);
         Assert.IsType<RequestFailedException>(ex.InnerException);
     }
 
@@ -149,6 +150,74 @@ public sealed class AgentProvisioningServiceTests : IDisposable
 
         Assert.Equal(CommonAgents.All.Length, ex.Failed.Count);
         Assert.Contains("Mentions \"Inadequate\"", ex.Message);
+        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Blocks_release_when_the_guardrail_blocks_a_case_that_should_be_answered()
+    {
+        _host.AddCaseForEveryAgent();
+        _host.Agents.RunAsync(default!, default!, default, default).ThrowsAsyncForAnyArgs(
+            call => new AgentGuardrailException(call.Arg<AgentDefinition>().Name, "prompt"));
+
+        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build().ProvisionAsync());
+
+        Assert.Equal(CommonAgents.All.Length, ex.Failed.Count);
+        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Records_each_agents_guardrail_check_and_whether_a_version_was_created(bool passes)
+    {
+        _host.AddCaseForEveryAgent(mustNotMention: passes ? [] : ["398"]);
+        _host.AnswerWith("398 pupils are on roll [Evidence 1].");
+        var recorded = new System.Collections.Concurrent.ConcurrentBag<(string Metric, string Agent, string? Value)>();
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == "Dfe.Common.AI.Services")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+        {
+            var tagList = tags.ToArray();
+            string? Tag(string key) => tagList.FirstOrDefault(t => t.Key == key).Value as string;
+            recorded.Add((instrument.Name, Tag("gen_ai.agent.name")!, Tag("dfe.ai_agents.release_gate.outcome") ?? Tag("gen_ai.agent.version")));
+        });
+        listener.Start();
+
+        try
+        {
+            await _host.Build().ProvisionAsync();
+        }
+        catch (AgentReleaseBlockedException) when (!passes)
+        {
+            // Expected: the answer mentions a forbidden fact.
+        }
+
+        foreach (var agent in AgentNames.All)
+        {
+            Assert.Contains(("dfe.common_ai_services.guardrail.checks", agent, "passed"), recorded);
+            Assert.Equal(passes, recorded.Contains(("dfe.common_ai_services.agents.provisioned", agent, "1")));
+        }
+    }
+
+    [Fact]
+    public async Task Provisions_nothing_when_the_gate_returns_no_result_for_an_agent()
+    {
+        var gate = Substitute.For<IAgentReleaseGate>();
+        gate.EvaluateAsync(default!, default).ReturnsForAnyArgs([new AgentGateResult(AgentNames.Establishment, [])]);
+        _host.ReleaseGate = gate;
+
+        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build().ProvisionAsync());
+
+        var notTested = Assert.Single(ex.Failed);
+        Assert.Equal(AgentNames.Trust, notTested.AgentName);
+        Assert.Equal([Messages.Errors.NotTested], notTested.Problems);
         await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
     }
 

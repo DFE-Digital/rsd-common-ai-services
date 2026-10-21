@@ -1,4 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
+using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Diagnostics;
@@ -19,9 +20,10 @@ internal static class ObservabilityExtensions
     private const string RequireTelemetryKey = "AiAgents:RequireTokenUsageTelemetry";
 
     /// <summary>
-    /// Sends logs, traces and metrics to Application Insights only. Serilog, configured by the <c>Serilog</c> settings,
-    /// replaces the host's logging providers (such as the console) and passes its events to the OpenTelemetry provider,
-    /// so logs share the exporter with the agents library's metrics and traces and the release-gate metrics.
+    /// Sends traces, metrics (tokens, cost, release-gate results) and error logs to Application Insights. Every log goes
+    /// where the <c>Serilog</c> settings send it (the console in appsettings.json). Serilog replaces the host's own
+    /// logging providers, and passes every event on to the providers registered here: the error log provider, and
+    /// tests' fake logger.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration.</param>
@@ -50,12 +52,15 @@ internal static class ObservabilityExtensions
         // The role name in Application Insights; the library tags its metrics with the same ApplicationName.
         var applicationName = configuration[ApplicationNameKey] ?? AppDomain.CurrentDomain.FriendlyName;
 
+        // Not UseAzureMonitorExporter, which would send every log there too, not only errors.
+        var connectionString = configuration[ConnectionStringKey]!;
+        services.AddSingleton<ILoggerProvider>(_ => new ErrorLogProvider(connectionString, applicationName));
         services.AddOpenTelemetry()
             .ConfigureResource(resource => resource.AddService(applicationName))
-            .WithTracing(tracing => tracing.AddSource(AgentTelemetry.SourceName))
-            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName))
-            .WithLogging(configureBuilder: null, configureOptions: logs => logs.IncludeFormattedMessage = true)
-            .UseAzureMonitorExporter();
+            .WithTracing(tracing => tracing.AddSource(AgentTelemetry.SourceName)
+                .AddAzureMonitorTraceExporter(exporter => exporter.ConnectionString = connectionString))
+            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName, ReleaseMetrics.MeterName)
+                .AddAzureMonitorMetricExporter(exporter => exporter.ConnectionString = connectionString));
 
         return services;
     }

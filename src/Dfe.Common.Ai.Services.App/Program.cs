@@ -47,7 +47,7 @@ catch (Exception ex)
     var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? (ILogger)NullLogger.Instance;
     var exitCode = ErrorHandler.Handle(ex, logger);
 
-    // Logs go to Application Insights, so say why here too, for whoever ran the job.
+    // One line that always reaches whoever ran the job, even if logging isn't set up yet.
     await Console.Error.WriteLineAsync(ErrorHandler.Summarise(exitCode, ex));
     return (int)exitCode;
 }

@@ -1,4 +1,5 @@
 using GovUK.Dfe.AI.Agents.ValueObjects;
+using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 
@@ -27,6 +28,15 @@ public static class Messages
         public static string SourcesMissing(IEnumerable<int> evidenceNumbers) =>
             "Add these cited records to the Sources section: " +
             string.Join(", ", evidenceNumbers.Select(n => $"[Evidence {n}]")) + ".";
+
+        /// <summary>
+        /// Sent back when an answer doesn't address an outcome the calling app expected. It asks the agent to check the
+        /// evidence, never to agree: a reason that said only "mention X" would push it to state X as fact.
+        /// </summary>
+        public static string ExpectedOutcomeNotAddressed(IEnumerable<string> outcomes) =>
+            "The calling application expected the answer to address: " + string.Join(", ", outcomes.Select(o => $"\"{o}\"")) +
+            ". For each, if the evidence supports it, state it with its citation; if not, say plainly that the evidence " +
+            "doesn't show it and what the evidence shows instead. Never state it just because it was expected.";
     }
 
     /// <summary>
@@ -39,9 +49,13 @@ public static class Messages
             $"{exception.Message} {exception.GetBaseException().Message}";
 
         public const string ApplicationInsightsMissing =
-            "APPLICATIONINSIGHTS_CONNECTION_STRING isn't set, so token usage, logs and release-gate results can't be sent to " +
+            "APPLICATIONINSIGHTS_CONNECTION_STRING isn't set, so token usage, cost and release-gate results can't be sent to " +
             "Application Insights. Set it to the Application Insights connection string, or, for local development " +
             "only, set AiAgents:RequireTokenUsageTelemetry to false.";
+
+        public const string NotTested = "The release checks returned no result for it, so it wasn't tested.";
+
+        public const string NoExpectedOutcome = "Give at least one expected outcome, and no empty ones.";
 
         public static string GuardrailNotInPlace(string guardrail, IEnumerable<string> problems) =>
             $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned. Create or fix it in the Foundry portal to match AiAgents:Guardrails: " +
@@ -51,13 +65,19 @@ public static class Messages
             $"Provisioning stopped part way. Foundry has new versions of {string.Join(", ", provisioned.Select(a => $"{a.Name} {a.Version}"))}, " +
             $"which no app has been told about; {string.Join(", ", failed)} weren't provisioned. Fix the cause and run again.";
 
-        /// <summary>The one line the job writes to the console when it fails, as its logs are in Application Insights.</summary>
+        /// <summary>The one line the job writes to the console when it fails, even if logging isn't set up yet.</summary>
         public static string RunFailed(ExitCode exitCode, string reason) =>
             $"Failed with exit code {(int)exitCode} ({exitCode}): {reason}";
 
+        /// <summary>One line per problem, guardrail first, each marked with its section: <c>- agent [guardrail]: …</c>.</summary>
         public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
             "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
-            string.Join(Environment.NewLine, failed.SelectMany(r => r.Problems.Select(p => $"- {r.AgentName}: {p}")));
+            string.Join(Environment.NewLine, failed.SelectMany(r =>
+                new[] { ReleaseSections.Guardrail, ReleaseSections.Evaluation }.SelectMany(section =>
+                    ReleaseSections.Problems(r, section).Select(p => $"- {r.AgentName} [{section}]: {p}"))));
+
+        /// <summary>A section's result: "passed", or "failed" with how many problems.</summary>
+        public static string SectionResult(int problems) => problems == 0 ? "passed" : $"failed ({problems} problems)";
     }
 
     /// <summary>
@@ -75,9 +95,12 @@ public static class Messages
         public const string ReleaseChecksFailed = "Agent release checks failed for {Count} agents: {Agents}";
 
         // Progress: Information, or Warning for a failure. Turned off by raising the log level (see README).
+        public const string Starting = "Provisioning {Count} agents: {Agents}";
         public const string ReleaseChecksStarting = "Running release checks for {Count} agents: {Agents}";
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
         public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
+        public const string AgentVersion = "{AgentName} is at version {Version}; apps should pin this version";
+        public const string ReleaseSectionsResult = "{AgentName}: guardrail {Guardrail}, evaluation {Evaluation}";
         public const string CheckingGuardrail = "Checking Foundry guardrail {Guardrail} for {Targets}";
         public const string GuardrailInPlace = "Foundry guardrail {Guardrail} is in place";
         public const string GuardrailNotInPlace = "The Foundry guardrail isn't in place: {Reason}";

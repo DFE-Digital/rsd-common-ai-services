@@ -1,0 +1,11 @@
+{
+  "prompt": "How full is URN 999108? Give its capacity, number on roll and percentage of places filled.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999108\nestablishment_name: St Anne's CofE Primary School\nestablishment_type: Voluntary aided school\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nschool_capacity: 210\nnumber_on_roll: 196\npercentage_seats_occupied: 93.3",
+  "mustMention": [
+    "210",
+    "196",
+    "93.3"
+  ],
+  "mustNotMention": [],
+  "group": "maintained-school"
+}

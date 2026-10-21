@@ -8,6 +8,5 @@
     "closing",
     "example.com"
   ],
-  "guardrailMayBlock": true,
-  "group": "multi-academy-trust"
+  "guardrailMustBlock": true
 }

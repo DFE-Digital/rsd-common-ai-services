@@ -14,6 +14,44 @@ namespace Dfe.Common.AI.Services.Application.Tests;
 public sealed class TelemetryTests
 {
     [Fact]
+    public void Logs_progress_to_the_console_as_the_apps_settings_configure_it()
+    {
+        // The App's own appsettings.json, so a broken Serilog section (e.g. a sink that can't load) fails here.
+        var appSettings = Path.Combine(RepositoryRoot(), "src", "Dfe.Common.Ai.Services.App", "appsettings.json");
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(appSettings)
+            .AddInMemoryCollection(ProvisioningTestHost.RequiredSettings())
+            .Build();
+        var console = new StringWriter();
+        var original = Console.Out;
+        Console.SetOut(console);
+        try
+        {
+            using (var provider = new ServiceCollection().AddAgentProvisioning(configuration).BuildServiceProvider())
+            {
+                provider.GetRequiredService<ILogger<TelemetryTests>>().LogInformation("Checking Foundry guardrail {Guardrail}", "test-guardrail");
+            }
+
+            Assert.Contains("INF Checking Foundry guardrail test-guardrail", console.ToString());
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+    }
+
+    internal static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Dfe.Common.Ai.Services.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Couldn't find the repository root.");
+    }
+
+    [Fact]
     public void Sends_telemetry_to_Application_Insights_when_a_connection_string_is_set()
     {
         var settings = ProvisioningTestHost.RequiredSettings();
@@ -28,7 +66,7 @@ public sealed class TelemetryTests
     }
 
     [Fact]
-    public void Logs_go_through_Serilog_to_Application_Insights_only()
+    public void Only_errors_are_logged_to_Application_Insights()
     {
         var settings = ProvisioningTestHost.RequiredSettings();
         settings[ObservabilityExtensions.ConnectionStringKey] =
@@ -37,9 +75,13 @@ public sealed class TelemetryTests
 
         services.AddAgentProvisioning(Configuration(settings));
 
-        Assert.DoesNotContain(services, s => s.ImplementationType == typeof(ConsoleStandIn));
-        Assert.Contains(services, s => s.ServiceType == typeof(ILoggerProvider));
+        // The host's default providers are gone; the only one left sends errors to Application Insights.
         Assert.Contains(services, s => s.ServiceType == typeof(ILoggerFactory) && s.ImplementationFactory is not null);
+        var provider = Assert.Single(services, s => s.ServiceType == typeof(ILoggerProvider));
+        using var errorLogs = (ILoggerProvider)provider.ImplementationFactory!(new ServiceCollection().BuildServiceProvider());
+        var logger = errorLogs.CreateLogger("Test");
+        Assert.True(logger.IsEnabled(LogLevel.Error));
+        Assert.False(logger.IsEnabled(LogLevel.Warning));
     }
 
     [Fact]

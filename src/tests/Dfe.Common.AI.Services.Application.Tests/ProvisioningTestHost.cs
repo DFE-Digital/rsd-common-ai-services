@@ -3,6 +3,7 @@ using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
@@ -64,6 +65,9 @@ internal sealed class ProvisioningTestHost : IDisposable
 
     public IFoundryGuardrailsService Guardrails { get; } = Substitute.For<IFoundryGuardrailsService>();
 
+    /// <summary>Replaces the library's release gate, to test how the job treats its results.</summary>
+    public IAgentReleaseGate? ReleaseGate { get; set; }
+
     public string ReportsDirectory => Path.Combine(_root, "reports");
 
     private string TestCasesDirectory => Path.Combine(_root, "cases");
@@ -78,26 +82,31 @@ internal sealed class ProvisioningTestHost : IDisposable
         Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(JudgeMetrics.All.ToDictionary(metric => metric, _ => score));
 
     public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
-        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null)
+        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null,
+        bool guardrailMustBlock = false)
     {
-        var directory = Directory.CreateDirectory(Path.Combine(TestCasesDirectory, agentName));
-        File.WriteAllText(Path.Combine(directory.FullName, $"{caseName}.json"), JsonSerializer.Serialize(new
+        // A name with a folder, e.g. "guardrail/injected-evidence", goes in that subfolder, as the app's own cases do.
+        var file = Path.Combine(TestCasesDirectory, agentName, $"{caseName}.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        File.WriteAllText(file, JsonSerializer.Serialize(new
         {
             prompt,
             evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
             mustMention = mustMention ?? [],
             mustNotMention = mustNotMention ?? [],
             guardrailMayBlock,
+            guardrailMustBlock,
             group,
         }));
     }
 
     public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
-        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null)
+        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null,
+        bool guardrailMustBlock = false)
     {
         foreach (var agent in CommonAgents.All)
         {
-            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt, guardrailMayBlock, group);
+            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt, guardrailMayBlock, group, guardrailMustBlock);
         }
     }
 
@@ -128,7 +137,7 @@ internal sealed class ProvisioningTestHost : IDisposable
         settings["AiAgents:Evaluation:ReleaseGate:BaselinesDirectory"] = BaselinesDirectory;
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
-        // The fake logger stands in for Application Insights: added after Serilog, which passes every event to it.
+        // The fake logger stands in for the console: added after Serilog, which passes every event to it.
         var services = new ServiceCollection()
             .AddAgentProvisioning(configuration)
             .AddLogging(logging => logging.AddFakeLogging());
@@ -138,6 +147,11 @@ internal sealed class ProvisioningTestHost : IDisposable
         if (judgeModel is not null)
         {
             services.AddSingleton(Judge);
+        }
+
+        if (ReleaseGate is not null)
+        {
+            services.AddSingleton(ReleaseGate);
         }
 
         _provider = services.BuildServiceProvider();
