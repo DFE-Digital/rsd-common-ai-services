@@ -5,6 +5,7 @@ using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using Microsoft.Extensions.Logging;
 using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
+using Dfe.Common.AI.Services.Application.Enums;
 
 namespace Dfe.Common.AI.Services.Application.ErrorHandling;
 

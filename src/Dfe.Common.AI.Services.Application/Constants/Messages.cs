@@ -1,7 +1,7 @@
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Dfe.Common.AI.Services.Application.Agents;
-using Dfe.Common.AI.Services.Application.ErrorHandling;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using Dfe.Common.AI.Services.Application.Enums;
 
 namespace Dfe.Common.AI.Services.Application.Constants;
 

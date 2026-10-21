@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
+using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

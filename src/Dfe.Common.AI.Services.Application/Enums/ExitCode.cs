@@ -1,4 +1,4 @@
-namespace Dfe.Common.AI.Services.Application.ErrorHandling;
+namespace Dfe.Common.AI.Services.Application.Enums;
 
 /// <summary>
 /// Exit codes for the application. These are returned to the operating system when the application exits, and can be used in scripts or other automation to determine the outcome of the application.

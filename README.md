@@ -328,11 +328,13 @@ other logs stay on the console. Metrics never contain prompts, evidence or answe
 Insights → Logs**; data arrives a few minutes after a run.
 
 **Tokens and cost per agent, per day.** Cost is in GBP, from `AiAgents:Pricing`. The judge runs on the same connection,
-so its tokens and cost are included:
+so its tokens and cost are included. Only this job's runs are counted (`app`); apps that run the agents report their
+own under their own `AiAgents:ApplicationName`:
 
 ```kusto
+let app = "rsd-common-ai-services";
 customMetrics
-| where timestamp > ago(30d)
+| where timestamp > ago(30d) and cloud_RoleName == app
 | where name in ("gen_ai.client.inference.usage.input_tokens", "gen_ai.client.inference.usage.output_tokens", "dfe.ai_agents.cost")
 | extend agent = tostring(customDimensions["gen_ai.agent.name"])
 | summarize inputTokens = sumif(valueSum, name endswith "input_tokens"),

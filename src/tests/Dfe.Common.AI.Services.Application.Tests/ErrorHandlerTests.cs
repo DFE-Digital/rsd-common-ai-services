@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Identity;
 using Dfe.Common.AI.Services.Application.Constants;
+using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
