@@ -1,5 +1,4 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
-using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Diagnostics;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Resources;
 using Serilog;
+using Dfe.Common.AI.Services.ReleaseGate.Metrics;
 
 namespace Dfe.Common.AI.Services.Application.Extensions;
 
@@ -59,7 +59,7 @@ internal static class ObservabilityExtensions
             .ConfigureResource(resource => resource.AddService(applicationName))
             .WithTracing(tracing => tracing.AddSource(AgentTelemetry.SourceName)
                 .AddAzureMonitorTraceExporter(exporter => exporter.ConnectionString = connectionString))
-            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName, ReleaseMetrics.MeterName)
+            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName, ReleaseGateMetrics.MeterName)
                 .AddAzureMonitorMetricExporter(exporter => exporter.ConnectionString = connectionString));
 
         return services;

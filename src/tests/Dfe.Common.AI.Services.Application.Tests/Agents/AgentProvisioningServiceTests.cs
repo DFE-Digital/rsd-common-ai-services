@@ -1,8 +1,8 @@
 using Azure;
+using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.Application.QualityGate;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Exceptions;
@@ -15,8 +15,10 @@ using NSubstitute.ExceptionExtensions;
 using NSubstitute.Extensions;
 using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
+using Dfe.Common.AI.Services.ReleaseGate.Models;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.Agents;
 
 public sealed class AgentProvisioningServiceTests : IDisposable
 {
@@ -204,21 +206,6 @@ public sealed class AgentProvisioningServiceTests : IDisposable
             Assert.Contains(("dfe.common_ai_services.guardrail.checks", agent, "passed"), recorded);
             Assert.Equal(passes, recorded.Contains(("dfe.common_ai_services.agents.provisioned", agent, "1")));
         }
-    }
-
-    [Fact]
-    public async Task Provisions_nothing_when_the_gate_returns_no_result_for_an_agent()
-    {
-        var gate = Substitute.For<IAgentReleaseGate>();
-        gate.EvaluateAsync(default!, default).ReturnsForAnyArgs([new AgentGateResult(AgentNames.Establishment, [])]);
-        _host.ReleaseGate = gate;
-
-        var ex = await Assert.ThrowsAsync<AgentReleaseBlockedException>(() => _host.Build().ProvisionAsync());
-
-        var notTested = Assert.Single(ex.Failed);
-        Assert.Equal(AgentNames.Trust, notTested.AgentName);
-        Assert.Equal([Messages.Errors.NotTested], notTested.Problems);
-        await _host.Agents.DidNotReceiveWithAnyArgs().ProvisionAsync(default!, default);
     }
 
     [Fact]

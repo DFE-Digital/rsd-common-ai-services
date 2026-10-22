@@ -6,13 +6,16 @@ Provisions the common RSD AI services: Azure AI Search indexes (`terraform/`) an
 
 | Agent | System prompt | Test cases |
 | --- | --- | --- |
-| `rsd-establishment-agent` | `Prompts/Establishment.md` | `TestCases/rsd-establishment-agent/` |
-| `rsd-trust-agent` | `Prompts/Trust.md` | `TestCases/rsd-trust-agent/` |
+| `rsd-establishment-agent` | `Application/Prompts/Establishment.md` | `ReleaseGate/TestCases/rsd-establishment-agent/` |
+| `rsd-trust-agent` | `Application/Prompts/Trust.md` | `ReleaseGate/TestCases/rsd-trust-agent/` |
 
 The establishment agent also answers Ofsted questions, from `establishment_index` and `ofsted_index` evidence.
 
-- `Dfe.Common.AI.Services.Application`: agents, prompts, test cases and the provisioning logic, built on
-  `GovUK.Dfe.AI.Agents` with its `Evaluation` (judge and release gate) and `Guardrails` add-ons.
+- `Dfe.Common.AI.Services.Application`: the agents (`CommonAgents`), their prompts and answer checks, and the
+  provisioning logic, built on `GovUK.Dfe.AI.Agents`.
+- `Dfe.Common.AI.Services.ReleaseGate`: whether agents can be released. The guardrail check, the release gate's
+  evaluation and guardrail sections and their test cases, built on the library's `Evaluation` (judge and release gate)
+  and `Guardrails` add-ons. Application uses it through `IReleaseGateService`; it doesn't depend on Application.
 - `Dfe.Common.Ai.Services.App`: runs it. It never runs the agents for real use; other apps do, at pinned versions.
 
 Each run:
@@ -250,7 +253,7 @@ named `<agent> release gate (<model>)`, with one run per release, so releases ca
 ### Reports and baselines
 
 Each run writes `evaluation-reports/<agent>.json` with every answer, score and failure. To set or raise an agent's bar,
-copy a passing report into `src/Dfe.Common.AI.Services.Application/Baselines/`. Without one, only `MinimumScore` applies.
+copy a passing report into `src/Dfe.Common.AI.Services.ReleaseGate/Baselines/`. Without one, only `MinimumScore` applies.
 
 ## Guardrails
 
@@ -471,17 +474,25 @@ level for this app and the agents library:
 | --- | --- |
 | `Error` | Failures only |
 | `Warning` | Also each failed test case and agent |
-| `Information` (default) | Also every step: start, guardrail check, each test case, judge scores, baselines, reports and the provisioned versions |
+| `Information` (default) | Also every step: start, guardrail check, each test case, judge scores, baselines, reports, each agent's guardrail and evaluation result, and the provisioned versions |
+
+`MinimumLevel:Override` keeps .NET's and Azure's own logs (`Microsoft`, `System`, `Azure`, `OpenTelemetry`) at
+`Error`, so host startup, HTTP request lines and framework warnings don't bury the steps; only their errors show. Leave
+`Default` at `Information`: at `Error` the console shows nothing until a failure.
 
 ```text
 14:02:11 INF Provisioning 2 agents: rsd-establishment-agent, rsd-trust-agent
 14:02:11 INF Checking Foundry guardrail rsd-common-agents-guardrail for Agents
 14:02:12 INF Foundry guardrail rsd-common-agents-guardrail is in place
-14:02:12 INF Testing rsd-establishment-agent with 24 test cases on a temporary copy
-14:02:24 WRN rsd-trust-agent / trust-name-matches-two-records: failed: Doesn't mention "TR99001"
+14:02:12 INF Testing rsd-establishment-agent with 29 test cases on a temporary copy
+14:02:20 INF rsd-trust-agent / evaluation/trust-profile: passed
+14:02:21 WRN The question matched the blocklist 'personal-identifiers' for rsd-trust-agent, so its prompt wasn't sent
+14:02:21 INF rsd-trust-agent / guardrail/personal-identifier: blocked by the guardrail, as this case allows
 14:04:51 INF rsd-establishment-agent average judge scores: Groundedness 4.92, Relevance 4.85 (3 cases expecting a refusal not scored)
 14:04:51 INF rsd-establishment-agent passed its release checks. Report: …/evaluation-reports/rsd-establishment-agent.json
+14:04:51 INF rsd-establishment-agent: guardrail passed, evaluation passed
+14:05:30 INF rsd-establishment-agent is at version 7; apps should pin this version
 ```
 
-To change the level for one run, set `Serilog__MinimumLevel__Default=Warning`. Test cases run side by side, so lines
-from different agents interleave.
+The `WRN` line for a `guardrail/` case is expected: it's the guardrail doing its job. To change the level for one run,
+set `Serilog__MinimumLevel__Default=Warning`. Test cases run side by side, so lines from different agents interleave.

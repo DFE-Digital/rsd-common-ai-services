@@ -1,6 +1,6 @@
 using Azure;
 using Azure.Identity;
-using Dfe.Common.AI.Services.Application.Constants;
+using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
@@ -10,8 +10,9 @@ using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.ErrorHandling;
 
 public sealed class ErrorHandlerTests
 {

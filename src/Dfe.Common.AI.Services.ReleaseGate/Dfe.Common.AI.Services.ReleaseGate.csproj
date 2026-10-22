@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.1932" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.1768" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.1665" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Dfe.Common.AI.Services.Application" />
+    <InternalsVisibleTo Include="Dfe.Common.AI.Services.Application.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Release-gate test cases, one folder per agent, each with evaluation/ and guardrail/ sections. They're read from
+         the output directory, and flow to any project that references this one. -->
+    <Content Include="TestCases\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Each agent's last accepted evaluation report, which its scores mustn't fall below. -->
+    <Content Include="Baselines\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

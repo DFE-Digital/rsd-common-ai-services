@@ -1,6 +1,4 @@
 using GovUK.Dfe.AI.Agents.ValueObjects;
-using Dfe.Common.AI.Services.Application.Agents;
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using Dfe.Common.AI.Services.Application.Enums;
 
 namespace Dfe.Common.AI.Services.Application.Constants;
@@ -53,13 +51,7 @@ public static class Messages
             "Application Insights. Set it to the Application Insights connection string, or, for local development " +
             "only, set AiAgents:RequireTokenUsageTelemetry to false.";
 
-        public const string NotTested = "The release checks returned no result for it, so it wasn't tested.";
-
         public const string NoExpectedOutcome = "Give at least one expected outcome, and no empty ones.";
-
-        public static string GuardrailNotInPlace(string guardrail, IEnumerable<string> problems) =>
-            $"The Foundry guardrail '{guardrail}' isn't in place, so no agents were tested or provisioned. Create or fix it in the Foundry portal to match AiAgents:Guardrails: " +
-            string.Join("; ", problems) + ".";
 
         public static string ProvisioningIncomplete(IEnumerable<AgentReference> provisioned, IEnumerable<string> failed) =>
             $"Provisioning stopped part way. Foundry has new versions of {string.Join(", ", provisioned.Select(a => $"{a.Name} {a.Version}"))}, " +
@@ -68,16 +60,6 @@ public static class Messages
         /// <summary>The one line the job writes to the console when it fails, even if logging isn't set up yet.</summary>
         public static string RunFailed(ExitCode exitCode, string reason) =>
             $"Failed with exit code {(int)exitCode} ({exitCode}): {reason}";
-
-        /// <summary>One line per problem, guardrail first, each marked with its section: <c>- agent [guardrail]: …</c>.</summary>
-        public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
-            "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
-            string.Join(Environment.NewLine, failed.SelectMany(r =>
-                new[] { ReleaseSections.Guardrail, ReleaseSections.Evaluation }.SelectMany(section =>
-                    ReleaseSections.Problems(r, section).Select(p => $"- {r.AgentName} [{section}]: {p}"))));
-
-        /// <summary>A section's result: "passed", or "failed" with how many problems.</summary>
-        public static string SectionResult(int problems) => problems == 0 ? "passed" : $"failed ({problems} problems)";
     }
 
     /// <summary>
@@ -92,17 +74,12 @@ public static class Messages
         public const string AzureRequestFailed = "Azure refused a request ({Status} {ErrorCode}); check the service principal's roles: {Reason}";
         public const string Cancelled = "Provisioning was cancelled or timed out before it finished";
         public const string UnexpectedError = "Provisioning failed unexpectedly";
-        public const string ReleaseChecksFailed = "Agent release checks failed for {Count} agents: {Agents}";
 
         // Progress: Information, or Warning for a failure. Turned off by raising the log level (see README).
         public const string Starting = "Provisioning {Count} agents: {Agents}";
-        public const string ReleaseChecksStarting = "Running release checks for {Count} agents: {Agents}";
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
         public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
         public const string AgentVersion = "{AgentName} is at version {Version}; apps should pin this version";
-        public const string ReleaseSectionsResult = "{AgentName}: guardrail {Guardrail}, evaluation {Evaluation}";
-        public const string CheckingGuardrail = "Checking Foundry guardrail {Guardrail} for {Targets}";
-        public const string GuardrailInPlace = "Foundry guardrail {Guardrail} is in place";
         public const string GuardrailNotInPlace = "The Foundry guardrail isn't in place: {Reason}";
     }
 }

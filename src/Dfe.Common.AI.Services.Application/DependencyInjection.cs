@@ -2,7 +2,7 @@ using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.Application.Extensions;
-using Dfe.Common.AI.Services.Application.QualityGate;
+using Dfe.Common.AI.Services.ReleaseGate;
 using GovUK.Dfe.AI.Agents.Builders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,25 +34,13 @@ public static class DependencyInjection
         }
 
         services.AddObservability(configuration);
+        services.AddReleaseGateService();
         services.AddSingleton<IAgentProvisioningService, AgentProvisioningService>();
 
         return services;
     }
 
+    // The guardrail and evaluation checks every agent must pass are in the ReleaseGate project.
     private static void ConfigureAgents(AgentsBuilder agents, bool hasJudge)
-    {
-        // The release gate's settings are under AiAgents:Evaluation:ReleaseGate. Cases expecting one of the prompts'
-        // fixed refusals are checked by that sentence and left out of the scores.
-        agents.AddAgents(CommonAgents.All)
-            .AddGuardrails()
-            .AddReleaseGate(gate => gate.RefusalPhrases.AddRange(FixedResponses.Refusals));
-
-        if (hasJudge)
-        {
-            // Scores test answers for groundedness in the evidence and relevance to the prompt. Its settings are under
-            // AiAgents:Evaluation; a SampleRate of 0 scores only release-gate answers, as live sampling belongs in the
-            // apps that run the agents.
-            agents.AddQualityEvaluation();
-        }
-    }
+        => agents.AddAgents(CommonAgents.All).AddReleaseChecks(hasJudge);
 }

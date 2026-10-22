@@ -1,7 +1,7 @@
-using Dfe.Common.AI.Services.Application.Constants;
+using Dfe.Common.AI.Services.ReleaseGate.Constants;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
 
-namespace Dfe.Common.AI.Services.Application.Exceptions;
+namespace Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 
 /// <summary>
 /// Thrown when the Foundry guardrail or one of its blocklists is missing, or weaker than the settings. It's created in

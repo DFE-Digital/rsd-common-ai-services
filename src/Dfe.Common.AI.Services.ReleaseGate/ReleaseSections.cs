@@ -1,12 +1,9 @@
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 
-namespace Dfe.Common.AI.Services.Application.Agents;
+namespace Dfe.Common.AI.Services.ReleaseGate;
 
 /// <summary>
-/// The release gate's two sections, each a folder of test cases, so a failure says what to fix. <b>Guardrail</b>: cases in
-/// <c>guardrail/</c>, which must be blocked, and any evaluation case a guardrail blocked by mistake; fix the guardrail
-/// settings. <b>Evaluation</b>: cases in <c>evaluation/</c>, and problems such as low judge scores, group gaps and baseline
-/// drops; fix the prompt or the test case.
+/// sections of the library's release gate: guardrail and evaluation, and the test case names that belong to each section.
 /// </summary>
 public static class ReleaseSections
 {
@@ -14,8 +11,7 @@ public static class ReleaseSections
     public const string Evaluation = "evaluation";
 
     /// <summary>
-    /// The start of a guardrail test case's name: the library names each case after its folder and file, e.g.
-    /// <c>guardrail/jailbreak-prompt</c>.
+    /// Prefix of a guardrail test case's name, e.g. <c>guardrail/guardrail-1</c>.
     /// </summary>
     public const string GuardrailCasePrefix = Guardrail + "/";
 
@@ -23,9 +19,10 @@ public static class ReleaseSections
     public const string EvaluationCasePrefix = Evaluation + "/";
 
     /// <summary>
-    /// The section a gate problem belongs to: a guardrail case's, or a block of an evaluation case, which the library
-    /// reports as a guardrail, Prompt Shields or blocklist block.
+    /// Provides the section of the release gate that a problem belongs to, based on its name or content.
     /// </summary>
+    /// <param name="problem">The problem to categorise.</param>
+    /// <returns>The section to which the problem belongs.</returns>
     public static string Of(string problem) =>
         problem.StartsWith($"Case {GuardrailCasePrefix}", StringComparison.Ordinal)
         || problem.Contains("guardrail", StringComparison.OrdinalIgnoreCase)

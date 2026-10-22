@@ -1,6 +1,7 @@
 using GovUK.Dfe.AI.Agents.Safety.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
 namespace Dfe.Common.AI.Services.Application.Tests;
 
@@ -12,7 +13,7 @@ public sealed class AppSettingsTests
     {
         // Foundry's guardrail doesn't run for a model behind API Management, nor scan any agent's evidence, so the app
         // checks the question and evidence itself: without this, the guardrail/ test cases can't pass.
-        var appSettings = Path.Combine(TelemetryTests.RepositoryRoot(), "src", "Dfe.Common.Ai.Services.App", "appsettings.json");
+        var appSettings = Path.Combine(Repository.Root(), "src", "Dfe.Common.Ai.Services.App", "appsettings.json");
         var configuration = new ConfigurationBuilder()
             .AddJsonFile(appSettings)
             .AddInMemoryCollection(ProvisioningTestHost.RequiredSettings())

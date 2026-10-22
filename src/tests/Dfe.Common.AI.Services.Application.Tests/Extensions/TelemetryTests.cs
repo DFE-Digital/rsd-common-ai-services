@@ -9,48 +9,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.Extensions;
 
 public sealed class TelemetryTests
 {
-    [Fact]
-    public void Logs_progress_to_the_console_as_the_apps_settings_configure_it()
-    {
-        // The App's own appsettings.json, so a broken Serilog section (e.g. a sink that can't load) fails here.
-        var appSettings = Path.Combine(RepositoryRoot(), "src", "Dfe.Common.Ai.Services.App", "appsettings.json");
-        var configuration = new ConfigurationBuilder()
-            .AddJsonFile(appSettings)
-            .AddInMemoryCollection(ProvisioningTestHost.RequiredSettings())
-            .Build();
-        var console = new StringWriter();
-        var original = Console.Out;
-        Console.SetOut(console);
-        try
-        {
-            using (var provider = new ServiceCollection().AddAgentProvisioning(configuration).BuildServiceProvider())
-            {
-                provider.GetRequiredService<ILogger<TelemetryTests>>().LogInformation("Checking Foundry guardrail {Guardrail}", "test-guardrail");
-            }
-
-            Assert.Contains("INF Checking Foundry guardrail test-guardrail", console.ToString());
-        }
-        finally
-        {
-            Console.SetOut(original);
-        }
-    }
-
-    internal static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Dfe.Common.Ai.Services.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Couldn't find the repository root.");
-    }
 
     [Fact]
     public void Sends_telemetry_to_Application_Insights_when_a_connection_string_is_set()

@@ -1,7 +1,7 @@
-using Dfe.Common.AI.Services.Application.Constants;
+using Dfe.Common.AI.Services.ReleaseGate.Constants;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 
-namespace Dfe.Common.AI.Services.Application.Exceptions;
+namespace Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 
 /// <summary>
 /// Thrown when the agents can't be released because one or more of them failed the release gate checks.

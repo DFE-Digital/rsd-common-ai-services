@@ -1,8 +1,9 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.AI.Agents.ValueObjects;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.Agents;
 
 public sealed class AnswerChecksTests
 {

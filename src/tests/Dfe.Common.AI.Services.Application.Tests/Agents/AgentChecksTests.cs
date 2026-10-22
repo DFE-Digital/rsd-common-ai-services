@@ -2,7 +2,7 @@ using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.Agents;
 
 /// <summary>How an app adds its own checks, such as an expected outcome, to a common agent.</summary>
 public sealed class AgentChecksTests

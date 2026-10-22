@@ -3,7 +3,6 @@ using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
 
-namespace Dfe.Common.AI.Services.Application.Tests;
+namespace Dfe.Common.AI.Services.Application.Tests.Helpers;
 
 /// <summary>
 /// Provisioning a temporary agent host for integration tests, with mocked dependencies and a temporary file system for test cases and reports.
@@ -65,8 +64,6 @@ internal sealed class ProvisioningTestHost : IDisposable
 
     public IFoundryGuardrailsService Guardrails { get; } = Substitute.For<IFoundryGuardrailsService>();
 
-    /// <summary>Replaces the library's release gate, to test how the job treats its results.</summary>
-    public IAgentReleaseGate? ReleaseGate { get; set; }
 
     public string ReportsDirectory => Path.Combine(_root, "reports");
 
@@ -149,10 +146,6 @@ internal sealed class ProvisioningTestHost : IDisposable
             services.AddSingleton(Judge);
         }
 
-        if (ReleaseGate is not null)
-        {
-            services.AddSingleton(ReleaseGate);
-        }
 
         _provider = services.BuildServiceProvider();
         return _provider.GetRequiredService<IAgentProvisioningService>();

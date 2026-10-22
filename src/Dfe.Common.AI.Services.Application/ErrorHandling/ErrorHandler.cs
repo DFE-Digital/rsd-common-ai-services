@@ -2,7 +2,7 @@ using Azure;
 using Azure.Identity;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 using Microsoft.Extensions.Logging;
 using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
 using Dfe.Common.AI.Services.Application.Enums;

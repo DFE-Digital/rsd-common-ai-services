@@ -9,8 +9,6 @@
   <ItemGroup>
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" />
     <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.1932" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.1768" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.1665" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.1" />
@@ -24,10 +22,11 @@
   <ItemGroup>
     <!-- System prompts are read from the output directory; they flow to any project that references this one. -->
     <Content Include="Prompts\**\*.md" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Release-gate test cases, one folder per agent. -->
-    <Content Include="TestCases\**\*.json" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Each agent's last accepted evaluation report, which its scores mustn't fall below. -->
-    <Content Include="Baselines\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The guardrail and evaluation checks every agent must pass before it's provisioned, with their test cases. -->
+    <ProjectReference Include="..\Dfe.Common.AI.Services.ReleaseGate\Dfe.Common.AI.Services.ReleaseGate.csproj" />
   </ItemGroup>
 
 </Project>

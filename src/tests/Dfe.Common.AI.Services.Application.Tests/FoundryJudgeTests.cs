@@ -2,13 +2,10 @@ using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
 using GovUK.Dfe.AI.Agents.Quality.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Dfe.Common.AI.Services.Application.Tests.Helpers;
 
 namespace Dfe.Common.AI.Services.Application.Tests;
 
-/// <summary>
-/// The release gate scores answers only through the library's judge, so it must be registered exactly when a judge
-/// model is set.
-/// </summary>
 public sealed class FoundryJudgeTests
 {
     private const string JudgeModel = "tests/gpt-5.1";
