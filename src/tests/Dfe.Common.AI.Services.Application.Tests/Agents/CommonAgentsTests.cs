@@ -1,10 +1,10 @@
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Constants;
 using GovUK.Dfe.AI.Agents.Evaluation.Options;
-using GovUK.Dfe.AI.Agents.Quality;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Dfe.Common.AI.Services.ReleaseGate.Models;
 using Dfe.Common.AI.Services.Application.Tests.Helpers;
+using GovUK.Dfe.AI.Agents.Release;
 
 namespace Dfe.Common.AI.Services.Application.Tests.Agents;
 

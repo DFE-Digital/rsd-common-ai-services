@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Resources;
 using Serilog;
-using Dfe.Common.AI.Services.ReleaseGate.Metrics;
 
 namespace Dfe.Common.AI.Services.Application.Extensions;
 
@@ -15,6 +14,13 @@ internal static class ObservabilityExtensions
 {
     /// <summary>Read by the Azure Monitor exporter itself, from settings or the environment variable of that name.</summary>
     internal const string ConnectionStringKey = "APPLICATIONINSIGHTS_CONNECTION_STRING";
+
+    /// <summary>
+    /// Application Insights' role name: <c>AiAgents:ApplicationName</c>, else the app's own name, as the agents library
+    /// works out the name it tags every metric with, so the two match.
+    /// </summary>
+    private static string ApplicationNameOf(IConfiguration configuration) =>
+        configuration[ApplicationNameKey] is { Length: > 0 } name ? name : AppDomain.CurrentDomain.FriendlyName;
 
     private const string ApplicationNameKey = "AiAgents:ApplicationName";
     private const string RequireTelemetryKey = "AiAgents:RequireTokenUsageTelemetry";
@@ -50,7 +56,7 @@ internal static class ObservabilityExtensions
         }
 
         // The role name in Application Insights; the library tags its metrics with the same ApplicationName.
-        var applicationName = configuration[ApplicationNameKey] ?? AppDomain.CurrentDomain.FriendlyName;
+        var applicationName = ApplicationNameOf(configuration);
 
         // Not UseAzureMonitorExporter, which would send every log there too, not only errors.
         var connectionString = configuration[ConnectionStringKey]!;
@@ -59,7 +65,8 @@ internal static class ObservabilityExtensions
             .ConfigureResource(resource => resource.AddService(applicationName))
             .WithTracing(tracing => tracing.AddSource(AgentTelemetry.SourceName)
                 .AddAzureMonitorTraceExporter(exporter => exporter.ConnectionString = connectionString))
-            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName, ReleaseGateMetrics.MeterName)
+            // The library's meter, which the release gate's and provisioning metrics use too.
+            .WithMetrics(metrics => metrics.AddMeter(AgentTelemetry.SourceName)
                 .AddAzureMonitorMetricExporter(exporter => exporter.ConnectionString = connectionString));
 
         return services;

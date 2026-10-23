@@ -67,7 +67,6 @@ public static class Messages
     /// </summary>
     public static class Log
     {
-        public const string ReleaseBlocked = "Agent release blocked by gate: {Problems}";
         public const string ProvisioningIncomplete = "Provisioning stopped part way; new versions no app knows about: {Provisioned}; not provisioned: {Failed}";
         public const string InvalidConfiguration = "The settings are invalid: {Reason}";
         public const string AuthenticationFailed = "Couldn't sign in to Azure; check AiAgents:Authentication: {Reason}";
@@ -80,6 +79,5 @@ public static class Messages
         public const string Provisioning = "All agents passed; creating or reusing their Foundry versions";
         public const string ProvisioningFinished = "Provisioned {Count} agents in {Seconds:0.0} seconds";
         public const string AgentVersion = "{AgentName} is at version {Version}; apps should pin this version";
-        public const string GuardrailNotInPlace = "The Foundry guardrail isn't in place: {Reason}";
     }
 }

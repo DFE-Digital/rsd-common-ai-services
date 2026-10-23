@@ -20,17 +20,11 @@ internal static partial class LogEvents
     [LoggerMessage(EventId = 1008, Level = LogLevel.Information, Message = Messages.Log.AgentVersion)]
     public static partial void AgentVersion(this ILogger logger, string agentName, string? version);
 
-    [LoggerMessage(EventId = 1101, Level = LogLevel.Error, Message = Messages.Log.ReleaseBlocked)]
-    public static partial void ReleaseBlocked(this ILogger logger, string problems);
-
     [LoggerMessage(EventId = 1102, Level = LogLevel.Error, Message = Messages.Log.ProvisioningIncomplete)]
     public static partial void ProvisioningIncomplete(this ILogger logger, string provisioned, string failed);
 
     [LoggerMessage(EventId = 1103, Level = LogLevel.Error, Message = Messages.Log.InvalidConfiguration)]
     public static partial void InvalidConfiguration(this ILogger logger, string reason);
-
-    [LoggerMessage(EventId = 1104, Level = LogLevel.Error, Message = Messages.Log.GuardrailNotInPlace)]
-    public static partial void GuardrailNotInPlace(this ILogger logger, string reason);
 
     [LoggerMessage(EventId = 1105, Level = LogLevel.Warning, Message = Messages.Log.Cancelled)]
     public static partial void Cancelled(this ILogger logger);

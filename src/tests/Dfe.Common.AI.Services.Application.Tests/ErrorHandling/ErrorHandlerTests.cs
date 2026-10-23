@@ -4,8 +4,8 @@ using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
+using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
-using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,11 +20,9 @@ public sealed class ErrorHandlerTests
 
     public static TheoryData<Exception, ExitCode> Failures => new()
     {
-        { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Establishment, ["Failed."])]), ExitCode.ReleaseBlocked },
-        {
-            new GuardrailNotInPlaceException(new GuardrailReport("rsd-guardrail", ["Deployment 'gpt-5.1' wasn't found"])),
-            ExitCode.InvalidConfiguration
-        },
+        { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Establishment, [], ["Failed."])]), ExitCode.ReleaseBlocked },
+        // A release-gate file the job can't read, such as a baseline: fixed in the repository, not by retrying.
+        { new ReleaseGateException("The baseline rsd-trust-agent.json isn't a readable evaluation report."), ExitCode.InvalidConfiguration },
         { new OperationCanceledException(), ExitCode.Cancelled },
         { new InvalidOperationException(FoundryFailure, new AuthenticationFailedException("Invalid client secret.")), ExitCode.InvalidConfiguration },
         { new InvalidOperationException(FoundryFailure, new RequestFailedException(403, "Forbidden.")), ExitCode.AzureRequestFailed },

@@ -1,18 +1,15 @@
 using System.Text.Json;
-using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Diagnostics.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.Guardrails.ValueObjects;
-using GovUK.Dfe.AI.Agents.Quality;
 using GovUK.Dfe.AI.Agents.Quality.Interfaces;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Testing;
 using NSubstitute;
 using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
 
@@ -28,6 +25,9 @@ internal sealed class ProvisioningTestHost : IDisposable
 
     public const string GuardrailName = "test-guardrail";
 
+    /// <summary>The <c>AiAgents:ApplicationName</c> every metric is tagged with.</summary>
+    public const string ApplicationName = "bt-test-app";
+
     public const string GuardrailSubscription = "00000000-0000-0000-0000-000000000000";
 
     public const string GuardrailResourceGroup = "tests";
@@ -35,6 +35,7 @@ internal sealed class ProvisioningTestHost : IDisposable
     /// <summary>The settings the agents library needs to start, with telemetry optional as in local development.</summary>
     public static Dictionary<string, string?> RequiredSettings(string? judgeModel = null) => new()
     {
+        ["AiAgents:ApplicationName"] = ApplicationName,
         ["AiAgents:Foundry:Endpoint"] = "https://tests.services.ai.azure.com/api/projects/tests",
         ["AiAgents:Foundry:DefaultModel"] = "tests/gpt-4o",
         ["AiAgents:Authentication:TenantId"] = "tenant",
@@ -64,6 +65,8 @@ internal sealed class ProvisioningTestHost : IDisposable
 
     public IFoundryGuardrailsService Guardrails { get; } = Substitute.For<IFoundryGuardrailsService>();
 
+    /// <summary>The app's <see cref="IAgentMetrics"/>, once <see cref="Build"/> has run.</summary>
+    public IAgentMetrics Metrics => _provider!.GetRequiredService<IAgentMetrics>();
 
     public string ReportsDirectory => Path.Combine(_root, "reports");
 
@@ -78,9 +81,8 @@ internal sealed class ProvisioningTestHost : IDisposable
     public void JudgeScores(double score) =>
         Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(JudgeMetrics.All.ToDictionary(metric => metric, _ => score));
 
-    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
-        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null,
-        bool guardrailMustBlock = false)
+    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "evaluation/case",
+        string prompt = "How many pupils are on roll?")
     {
         // A name with a folder, e.g. "guardrail/injected-evidence", goes in that subfolder, as the app's own cases do.
         var file = Path.Combine(TestCasesDirectory, agentName, $"{caseName}.json");
@@ -91,19 +93,15 @@ internal sealed class ProvisioningTestHost : IDisposable
             evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
             mustMention = mustMention ?? [],
             mustNotMention = mustNotMention ?? [],
-            guardrailMayBlock,
-            guardrailMustBlock,
-            group,
         }));
     }
 
-    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "case",
-        string prompt = "How many pupils are on roll?", bool guardrailMayBlock = false, string? group = null,
-        bool guardrailMustBlock = false)
+    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "evaluation/case",
+        string prompt = "How many pupils are on roll?")
     {
         foreach (var agent in CommonAgents.All)
         {
-            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt, guardrailMayBlock, group, guardrailMustBlock);
+            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt);
         }
     }
 

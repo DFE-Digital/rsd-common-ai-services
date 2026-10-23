@@ -18,8 +18,8 @@ public static class ErrorHandler
     {
         switch (exception)
         {
-            case AgentReleaseBlockedException blocked:
-                logger.ReleaseBlocked(blocked.Message);
+            // The release gate has already logged each reason as an error, in the form the README's queries read.
+            case AgentReleaseBlockedException:
                 return ExitCode.ReleaseBlocked;
 
             // Report the versions Foundry now has, then handle why provisioning stopped.
@@ -36,11 +36,6 @@ public static class ErrorHandler
 
             case AgentConfigurationException configuration:
                 logger.InvalidConfiguration(configuration.Message);
-                return ExitCode.InvalidConfiguration;
-
-            // The guardrail or a blocklist is missing in Foundry, or weaker than the settings.
-            case GuardrailNotInPlaceException guardrails:
-                logger.GuardrailNotInPlace(guardrails.Message);
                 return ExitCode.InvalidConfiguration;
 
             // A settings file, such as appsettings.json, that isn't valid JSON.

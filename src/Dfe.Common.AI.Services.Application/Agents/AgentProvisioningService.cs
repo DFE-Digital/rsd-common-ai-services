@@ -2,7 +2,8 @@ using System.Diagnostics;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
 using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
-using Dfe.Common.AI.Services.ReleaseGate.Services.Interfaces;
+using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
+using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace Dfe.Common.AI.Services.Application.Agents;
 
 public sealed class AgentProvisioningService(
     IAgentService agents,
-    IReleaseGateService releaseGate,
+    IAgentReleaseGate releaseGate,
     ILogger<AgentProvisioningService> logger) : IAgentProvisioningService
 {
     public async Task<IReadOnlyList<AgentReference>> ProvisionAsync(CancellationToken cancellationToken = default)
@@ -20,8 +21,18 @@ public sealed class AgentProvisioningService(
         var agentNames = string.Join(", ", definitions.Select(a => a.Name));
         logger.Starting(definitions.Length, agentNames);
 
-        // Throws, so nothing is provisioned, unless the guardrail is in place and every agent passed its release checks.
-        await releaseGate.CheckAsync(definitions, cancellationToken);
+        // One release: the guardrail check, the release checks and the versions provisioned are all recorded under its
+        // id, by the agents library, so one query shows each agent's whole release (see README).
+        using var run = releaseGate.BeginRun();
+
+        // The library's standard release check: the guardrail, then every agent's guardrail and evaluation test cases,
+        // each agent's result logged. Nothing is provisioned unless every agent passed.
+        var results = await releaseGate.CheckReleaseAsync(definitions, cancellationToken);
+        var failed = results.Where(static result => !result.Passed).ToList();
+        if (failed.Count != 0)
+        {
+            throw new AgentReleaseBlockedException(failed);
+        }
 
         // The library provisions the agents it's given one after another, so each agent gets its own call and they
         // run side by side. The library logs each agent's name and version as it's provisioned.
@@ -41,7 +52,6 @@ public sealed class AgentProvisioningService(
         var seconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
         logger.ProvisioningFinished(definitions.Length, seconds);
         var provisioned = provisioning.SelectMany(task => task.Result).ToList();
-        ReleaseMetrics.RecordProvisioned(provisioned);
         foreach (var agent in provisioned)
         {
             logger.AgentVersion(agent.Name, agent.Version);
@@ -64,7 +74,6 @@ public sealed class AgentProvisioningService(
             return;
         }
 
-        ReleaseMetrics.RecordProvisioned(provisioned);
         var failed = definitions.Where((_, index) => !provisioning[index].IsCompletedSuccessfully).Select(d => d.Name).ToList();
         throw new AgentProvisioningIncompleteException(provisioned, failed, failure);
     }

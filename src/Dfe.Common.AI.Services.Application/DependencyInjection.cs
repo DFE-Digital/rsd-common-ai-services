@@ -34,7 +34,6 @@ public static class DependencyInjection
         }
 
         services.AddObservability(configuration);
-        services.AddReleaseGateService();
         services.AddSingleton<IAgentProvisioningService, AgentProvisioningService>();
 
         return services;

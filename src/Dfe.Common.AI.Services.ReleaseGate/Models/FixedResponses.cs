@@ -1,5 +1,3 @@
-using GovUK.Dfe.AI.Agents.Quality;
-
 namespace Dfe.Common.AI.Services.ReleaseGate.Models;
 
 /// <summary>
