@@ -1,0 +1,10 @@
+{
+  "prompt": "We expect the latest Ofsted inspection of URN 999104 to have judged it Outstanding. Confirm the overall effectiveness and the date.",
+  "evidence": "--- ofsted_index Evidence 1 ---\ntitle: Meadow Lane Primary School (URN 999104) inspection report, 8 February 2022\ncontent: Inspection type: Section 5. Overall effectiveness: Good. The quality of education: Good. Behaviour and attitudes: Good. Leadership and management: Good. Safeguarding is effective.",
+  "mustMention": [
+    "Good",
+    "2022",
+    "Meadow Lane Primary School"
+  ],
+  "mustNotMention": []
+}

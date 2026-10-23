@@ -1,0 +1,15 @@
+{
+  "prompt": "Using only the evidence supplied, analyse \"Oakfield Primary School\" (URN/TRN: 999101) and report your findings. Start with the heading \"## About the school\", give the identity and location facts as a table with the columns Field and Detail, and end with the line {{city: <the town or city in its address, or none>}}.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nestablishment_type: Academy converter\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nestablishment_address: 1 Oak Lane, Westbury, Westshire, WS1 2AB\nlocal_authority_name: Westshire\nassociated_trust_name: Northfield Learning Trust\nschool_capacity: 420\nnumber_on_roll: 398",
+  "mustMention": [
+    "## About the school",
+    "Field",
+    "Detail",
+    "Oakfield Primary School",
+    "999101",
+    "{{city:",
+    "Westbury",
+    "Sources"
+  ],
+  "mustNotMention": []
+}

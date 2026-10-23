@@ -6,83 +6,431 @@ Provisions the common RSD AI services: Azure AI Search indexes (`terraform/`) an
 
 | Agent | System prompt | Test cases |
 | --- | --- | --- |
-| `rsd-establishment-agent` | `Prompts/Establishment.md` | `TestCases/rsd-establishment-agent/` |
-| `rsd-ofsted-agent` | `Prompts/Ofsted.md` | `TestCases/rsd-ofsted-agent/` |
-| `rsd-trust-agent` | `Prompts/Trust.md` | `TestCases/rsd-trust-agent/` |
+| `rsd-establishment-agent` | `Application/Prompts/Establishment.md` | `ReleaseGate/TestCases/rsd-establishment-agent/` |
+| `rsd-trust-agent` | `Application/Prompts/Trust.md` | `ReleaseGate/TestCases/rsd-trust-agent/` |
 
-- `Dfe.Common.AI.Services.Application` holds the agents, prompts, test cases and all logic.
-- `Dfe.Common.Ai.Services.App` runs it: tests every agent, then creates a Foundry version for each changed agent. It never runs agents for real use.
 
-### Quality checks
 
-- **Grounding:** answers must cite evidence as `[Evidence n]`, and empty answers are rejected. These checks run where
-  the agent runs, so consuming apps must use the definitions in `CommonAgents`.
-- **Release gate:** each agent's test cases run on a temporary copy first. If any agent fails, nothing is provisioned.
-  An agent fails if an answer misses a `mustMention` or contains a `mustNotMention`, or, with a judge model set, if
-  its average groundedness or relevance score is below `AgentQuality:MinimumScore` or missing.
+- `Dfe.Common.AI.Services.Application`: the agents (`CommonAgents`), their prompts and answer checks, and the
+  provisioning logic, built on `GovUK.Dfe.AI.Agents`.
+- `Dfe.Common.AI.Services.ReleaseGate`: the release check's set-up (`AddReleaseChecks`: guardrail, judge, refusal
+  phrases) and its test cases. The check itself is the library's `IAgentReleaseGate.CheckReleaseAsync`, called by
+  Application; this project doesn't depend on Application.
+- `Dfe.Common.Ai.Services.App`: runs it. It never runs the agents for real use; other apps do, at pinned versions.
 
-Test case, one JSON file per case (all data is fictional):
+Each run:
+
+1. **Checks the guardrail** created in the Foundry portal. If it's missing or weaker than the settings, nothing else happens.
+2. **Tests every agent** on a temporary copy (the release gate). If any agent fails, nothing is provisioned.
+3. **Provisions** a new Foundry version for each changed agent, and prints the versions to pin.
+
+## Run
+
+```sh
+dotnet run --project src/Dfe.Common.Ai.Services.App   # provisions in the configured Foundry project
+dotnet test                                           # tests; no Azure calls
+```
+
+### Settings
+
+Set these as user secrets or environment variables (`AiAgents__Foundry__Endpoint`). The rest have defaults in
+`appsettings.json`.
+
+| Setting | Value |
+| --- | --- |
+| `AiAgents:Foundry:Endpoint` | `https://<resource>.services.ai.azure.com/api/projects/<project>` |
+| `AiAgents:Foundry:DefaultModel` | `<connection>/<model>`: the API Management model connection, e.g. `my-apim-connection/gpt-5.1`. Every agent, test copy and judge must use a model on this connection; any other is refused |
+| `AiAgents:Authentication:TenantId`, `ClientId`, `ClientSecret` | The service principal; see [Roles](#roles) |
+| `AiAgents:Guardrails:SubscriptionId`, `ResourceGroup` | Where the Foundry resource is. Its name comes from the endpoint |
+| `AiAgents:Evaluation:JudgeModel` | Optional. The model that scores answers, on the same connection, e.g. `my-apim-connection/gpt-5.1`. Empty: no scores |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Required, unless `AiAgents:RequireTokenUsageTelemetry` is `false` (local only) |
+
+Release gate settings (`AiAgents:Evaluation:ReleaseGate`). The gate itself is the AI agents library's
+(`AddReleaseGate()` in the Evaluation package); this app adds the prompts' fixed refusals as `RefusalPhrases`:
+
+| Setting | Value | Purpose |
+| --- | --- | --- |
+| `MinimumScore` | 3.5 | Lowest average judge score per metric (1 to 5) |
+| `Tolerance` | 0.2 | How far a score may fall below the agent's baseline |
+| `MaxGroupGap` | 0.5 | Largest score gap between test case groups. Remove it to turn the check off |
+| `Repeats` | 1 | Runs per test case; scores are averaged. Each repeat costs another run and judge call |
+| `MaxParallelTestRuns` | 8 | Test cases run at once, across both agents. Each also makes two judge calls, so keep within the model's quota: lower it if runs fail with rate limits (429) |
+| `PublishToFoundry` | false | Also sends each release's answers to a Foundry evaluation (see [Results in Foundry](#results-in-foundry)) |
+
+### Output
+
+On success it prints the versions for consuming apps to pin:
+
+```json
+{ "AiAgents": { "ExternallyManagedAgents": { "rsd-establishment-agent": "1", "rsd-trust-agent": "1" } } }
+```
+
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Provisioned |
+| 1 | Unexpected failure |
+| 2 | Release gate failed, including the guardrail not being in place; nothing provisioned |
+| 3 | Settings missing or invalid, credentials rejected, or a baseline unreadable |
+| 4 | Azure refused a request, e.g. a missing role or wrong deployment name |
+| 5 | Cancelled or timed out |
+
+On failure it writes one line to stderr, e.g. `Failed with exit code 4 (AzureRequestFailed): Forbidden.`; the steps
+before it are on the console, and the error in Application Insights (see [Logs](#logs)). If provisioning stops part way, the line lists the agents that already
+have new versions, as no app has been told about them.
+
+### Roles
+
+The service principal in `AiAgents:Authentication` needs:
+
+| Role | Scope | Why |
+| --- | --- | --- |
+| **Foundry User** | Foundry project | Create agent versions, run and delete test copies, judge calls |
+| **Reader** | Foundry resource | Check the guardrail and blocklist, which the job never creates or changes |
+| **Cognitive Services User** | Foundry resource | Scan questions and evidence with Prompt Shields (`Guardrails:ScanPrompts`, `ScanEvidence`), as Foundry's guardrail doesn't run for these agents |
+
+> **Note**
+> * With `PublishToFoundry`, give **Foundry User** on the Foundry **resource** instead of both: Microsoft requires it there for evaluations that call a model, and it includes Reader.
+> *  Apps that run the agents need **Foundry User** on the project, **Reader** and **Cognitive Services User** on the Foundry resource, and **Search Index Data Reader** on Azure AI Search.
+
+Use role IDs for Foundry roles while Microsoft renames them
+([RBAC for Foundry](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry)). New roles take a few minutes to
+apply.
+
+## Answer rules
+
+Every agent (`CommonAgents`) enforces these wherever it runs, so consuming apps must use these definitions:
+
+- **Grounded:** facts come only from the evidence and are cited as `[Evidence n]`. Empty answers are rejected.
+- **Traceable:** answers end with a `Sources:` list of each cited record, written only as `- [Evidence n]`. The model
+  never writes a source link: a Sources list containing one is sent back once, then the run fails.
+- **Fixed responses:** "The evidence provided does not include this information.", "This is outside what I can
+  answer." and "Which establishment do you mean?" / "Which trust do you mean?". Apps can match on these to tell an
+  answer from a gap, a refusal or a question back.
+- **Shared by several apps:** the agents serve multiple AI apps. Each request stands alone (nothing carries over from
+  earlier questions, and the agent never guesses which app is asking), and the same question with the same evidence gets
+  the same answer shape for every app. Tailoring answers to an app's users is that app's job.
+- **Layout is the app's:** by default plain Markdown (paragraphs and lists, no headings or tables). An app can ask for
+  its own layout in the question, e.g. a starting heading, tables, or a marker line its code reads (as briefing-tool's
+  `{{city: …}}`), and the agent follows it, still citing every fact and ending with the Sources list.
+- **Expected outcomes and validation:** an app may say what it expects (e.g. "we expect Outstanding") to check the
+  answer. The agent never adopts it: it answers from the evidence and says plainly when the evidence differs. An app
+  can also validate each answer (`validateOutput` on `RunAsync`): a rejected answer goes back to the agent once with
+  the reason, and it fixes only that.
+- **Callers can't change the rules:** an app may ask for a length or level of detail, but not drop citations, the
+  Sources list or the fixed responses. Questions are treated only as questions, never as instructions.
+
+### Apps that run the agents
+
+Run the agents with `CommonAgents.Establishment` and `CommonAgents.Trust`: their checks run in the app, not in Foundry.
+Add your own checks with `AgentChecks`, never by setting `Validate`, which would drop the common checks:
+
+```csharp
+// The answer must address "Outstanding": it's sent back once if it doesn't, told to state it only if the evidence
+// supports it and otherwise to say the evidence doesn't show it. Read the answer to see whether your expectation held.
+var agent = CommonAgents.Establishment.ExpectingMention("Outstanding");
+
+// Or any check of your own, run after the common ones: return why the answer is wrong, or null.
+var strict = CommonAgents.Trust.WithCheck(result => result.Output!.Contains("TR99001") ? null : "Name trust TR99001.");
+```
+
+A failed check sends the answer back to the agent once with the reason; if the second answer fails too, the run fails.
+
+The library turns each `[Evidence n]` into a citation readers can use, after the answer passes its checks, with no
+settings. Pass the search result itself as evidence (`evidence: searchResult`, not `searchResult.Text`), and render
+answers as HTML or Markdown with inline HTML.
+
+## Release gate
+
+The job runs the agents library's standard release check, `IAgentReleaseGate.CheckReleaseAsync`, as every app does
+([how it decides](https://github.com/DFE-Digital/rsd-ai-libs/blob/main/src/GovUK.Dfe.AI.Agents.Evaluation/readme.md#release-gate)).
+Nothing is provisioned unless the guardrail is in place and every agent passes; otherwise the job exits with code 2 and
+logs an error for each reason, with its agent and section (`guardrail` or `evaluation`) as fields the queries below
+filter on. Cases expecting one of `FixedResponses.Refusals` are checked by that sentence and not scored.
+
+### Test cases
+
+One JSON file per case, with fictional data, under `ReleaseGate/TestCases/<agent>/`:
 
 ```json
 {
   "prompt": "How many pupils are on roll at Oakfield Primary School, URN 999101?",
   "evidence": "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
   "mustMention": [ "398" ],
-  "mustNotMention": [ "251" ]
+  "mustNotMention": [ "251" ],
+  "group": "academy"
 }
 ```
 
-Each run writes a report per agent to `evaluation-reports/`, showing every answer and why it failed.
+| Folder | Each case | Passes when | If it fails, fix |
+| --- | --- | --- | --- |
+| `guardrail/` | `"guardrailMustBlock": true`, no `group` | It's **blocked** | `ScanPrompts`, `ScanEvidence`, `CheckBlocklists` or the blocklist |
+| `evaluation/` | No guardrail flag | The agent **answers**: right facts, scores, group gap, baseline | The prompt, or the case |
 
-### Run
+| Guardrail case | Tests | Blocked by |
+| --- | --- | --- |
+| `guardrail/injected-evidence` | Instructions planted in the evidence | Prompt Shields (`ScanEvidence`) |
+| `guardrail/jailbreak-prompt` | A known jailbreak in the question | Prompt Shields (`ScanPrompts`) |
+| `guardrail/personal-identifier` | A pupil UPN in the question | The `personal-identifiers` blocklist (`CheckBlocklists`) |
 
-Set as user secrets or environment variables (`AiAgents__Foundry__Endpoint`):
+`TestCaseFileTests` checks every file against the library's conventions at build time, and `CommonAgentsTests` checks
+each case can be answered from its evidence, question or the prompt's fixed responses.
 
-| Setting | Value |
+- **Evaluation kinds:** factual and synthesis, similarly named record, not in the evidence, partly in the evidence,
+  out of scope, name matching two records, a calling app asking for a format the rules don't allow
+  (`caller-format-request`), a calling app asking for its own layout (`caller-layout-request`), a calling app
+  expecting an outcome the evidence contradicts (`expected-outcome`), and results as the index writes them
+  (`ks4-scores-and-years`).
+- **One behaviour per case:** don't add a case whose question and evidence another case already covers; combine
+  them into one question instead. Every case costs an agent run and two judge calls.
+- **Groups:** the kind of school (`academy`, `maintained-school`, `special-school`) or trust (`multi-academy-trust`,
+  `single-academy-trust`). Give every group, school or trust, at least five scored cases: with three, one harsh judge score moves
+  the group's average by about 0.8, more than `MaxGroupGap`. Removing a case from a group makes the gap check less
+  stable.
+- **Tests keep cases honest:** `dotnet test` fails if a case requires text its evidence, question or prompt can't
+  produce, for example after rewording a fixed response.
+
+### Results in Foundry
+
+With `AiAgents:Evaluation:ReleaseGate:PublishToFoundry`, each release's answers are also scored by Foundry's built-in **groundedness** and
+**relevance** evaluators, using the judge model (`AiAgents:Evaluation:JudgeModel`, else `AiAgents:Foundry:DefaultModel`;
+a `<connection>/<model>` works). Results are on the Foundry project's **Evaluations** page: one evaluation per agent,
+named `<agent> release gate (<model>)`, with one run per release, so releases can be compared. The log links each run.
+
+- It doesn't affect the release: the gate's own checks decide. Runs finish in Foundry after the job ends.
+- Only answered cases are sent, not refusal cases (relevance marks refusals as irrelevant) or guardrail blocks.
+- The prompt, evidence and answer of each case are stored in Foundry; test data is fictional.
+- If Foundry can't be reached, a warning is logged and the job carries on.
+
+### Reports and baselines
+
+Each run writes `evaluation-reports/<agent>.json` with every answer, score and failure. To set or raise an agent's bar,
+copy a passing report into `src/Dfe.Common.AI.Services.ReleaseGate/Baselines/`. Without one, only `MinimumScore` applies.
+
+## Guardrails
+
+The guardrail is created in the Foundry portal (see [Create the guardrail](#create-the-guardrail)), not by this job.
+Models are reached through an API Management connection, so the guardrail goes on the agents (`"Targets": "Agents"`):
+
+- **Before testing,** the job checks the guardrail (`AiAgents:Guardrails:Name`) and the `personal-identifiers` blocklist
+  exist and are at least as strict as the settings. If not, nothing is tested or provisioned (exit code 2). A stricter
+  guardrail, or a blocklist with extra entries, passes.
+- **Every agent version** the library creates gets the guardrail, including release-gate copies and the judge. A
+  version without it is replaced, never reused.
+- **But Foundry doesn't enforce it for these agents.** Foundry guardrails cover Azure-sold models; for a model behind
+  your own gateway, Microsoft leaves safety to you
+  ([Bring your own model](https://learn.microsoft.com/azure/foundry/agents/how-to/ai-gateway)). A release run proved
+  it: a pupil UPN reached the model, and a jailbreak was stopped only by the backend Azure OpenAI deployment's own
+  filter, which the gateway reports as a generic HTTP 400.
+- **So the app checks every run's input itself,** after redaction and before anything reaches the model:
+
+  | Setting | Blocks | How |
+  | --- | --- | --- |
+  | `CheckBlocklists` | Pupil UPNs and National Insurance numbers in the question or evidence | The `Blocklists` patterns, in the app, no Azure call |
+  | `ScanPrompts` | Jailbreak attempts in the question | [Prompt Shields](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection) |
+  | `ScanEvidence` | Instructions planted in the evidence | Prompt Shields |
+
+>**Note**
+> * A block fails the run as a guardrail block, with the reason in the log, e.g. "The question matched the blocklist 'personal-identifiers' for rsd-trust-agent, so its prompt wasn't sent". The service principal needs **Cognitive Services User** (see [Roles](#roles)); if input can't be scanned, the run fails rather than sending it. The `guardrail/` test cases prove each check works on every release.
+> *The `AiAgents:Guardrails` settings describe the minimum the portal guardrail must meet; change both together. Apps that run the agents should leave `RequireAtStartup` `true`, so they won't start on agent versions without it.
+> * If the API Management gateway also blocks content itself, add its error to `AiAgents:Foundry:GatewayGuardrailErrors` (`Status` and `Code`, taken from one real blocked call), so those blocks count as guardrail blocks.
+
+### Create the guardrail
+
+Needs **Foundry Account Owner** on the Foundry resource. In [Foundry](https://ai.azure.com), open the project and
+select **Build** → **Guardrails**.
+
+1. **Blocklist:** on the **Blocklists** tab, select **Create blocklist**, name it `personal-identifiers`, and add these
+   two entries, each marked as **regex**. Paste only the pattern: any extra text, such as a label, becomes part of the
+   regex and stops it matching.
+
+   ```text
+   [A-Z][0-9]{11}[0-9A-Z]
+   [A-CEGHJ-PR-TW-Z]{2}[0-9]{6}[A-D]
+   ```
+
+   The first is a pupil UPN, the second a National Insurance number.
+2. **Guardrail:** select **Create Guardrail**. In **Add controls**, set each control below (select the risk, the
+   intervention points and **Block**, then **Add control**; for the four harm risks, add them again and **Confirm** the
+   override):
+
+   | Risk | Intervention points | Setting |
+   | --- | --- | --- |
+   | Hate, Sexual, Violence, Self-harm | User input and output | Block, **Medium** (or stricter) |
+   | User prompt attacks (jailbreak) | User input | Block |
+   | Indirect attacks | User input | Block (required: it's off in the default, and the job fails without it). Leave "Spotlighting" off |
+   | Protected material: text and code | Output | Block |
+   | Blocklist `personal-identifiers` | User input and output | Block |
+
+3. **Assign:** select **Next**. You can skip assigning models and agents: the library puts the guardrail on each new
+   agent version. Optionally add the current versions of the agents.
+4. **Name:** select **Next**, name it `rsd-common-agents-guardrail`, then **Create**.
+5. **Run the job.** It checks the guardrail, then creates new versions of the agents carrying it.
+6. **Test it:** in the agent's playground, a prompt containing `A12345678901B` should be blocked.
+
+## Monitoring
+
+Metrics, traces and error logs go to Application Insights, with `AiAgents:ApplicationName` as the role name; the
+other logs stay on the console. Metrics never contain prompts, evidence or answers. Run these in **Application
+Insights → Logs**; data arrives a few minutes after a run.
+
+The release metrics are the AI agent library's, the same in every app that uses it; only `app` differs. Each answers
+one question before an agent goes live:
+
+| Metric | Answers |
 | --- | --- |
-| `AiAgents:Foundry:Endpoint` | `https://<resource>.services.ai.azure.com/api/projects/<project>` |
-| `AiAgents:Foundry:DefaultModel` | Model deployment, e.g. `<connection>/gpt-4o` |
-| `AiAgents:Authentication:TenantId`, `ClientId`, `ClientSecret` | Service principal with **Azure AI User** on the project |
-| `AgentQuality:JudgeModel` | Optional. Model deployment that scores answers |
+| `dfe.ai_agents.guardrail.checks` | Was the Foundry guardrail in place for this agent? |
+| `dfe.ai_agents.release_gate.test_cases` | Which test cases failed, and were the guardrail cases blocked? |
+| `dfe.ai_agents.release_gate.score` | Are its answers grounded and relevant enough? |
+| `dfe.ai_agents.release_gate.agents` | Did it pass the release gate? |
+| `dfe.ai_agents.agents.provisioned` | Which version went live? None means it was held back. |
 
-```sh
-dotnet run --project src/Dfe.Common.Ai.Services.App   # provisions in the configured Foundry project
-dotnet test                                           # integration tests; no Foundry calls
+Each is tagged with the app (`dfe.ai_agents.application`, from `AiAgents:ApplicationName`), the agent
+(`gen_ai.agent.name`) and the release (`dfe.ai_agents.release_gate.run_id`, logged as "Release run `<id>` started"), so
+one query shows a whole release and apps sharing an Application Insights resource never mix. Metrics arrive in batches:
+allow a few minutes after a run. More queries, for cost, speed and safety, are in the library's
+[telemetry guide](https://github.com/DFE-Digital/rsd-ai-libs/blob/main/docs/telemetry.md#queries).
+
+**Release result per agent**, newest release first:
+
+| Column | Meaning |
+| --- | --- |
+| `guardrail` | `passed`: the Foundry guardrail was in place. `FAILED`: it was missing or weaker than the settings. `not checked`: it isn't configured, or couldn't be read. |
+| `casesPassed` / `attacksBlocked` | Test cases answered correctly, and guardrail cases blocked as they should be. |
+| `failedCases` | The test cases that failed; the next query says why. |
+| `groundedness` / `relevance` | The judge's average scores, 1 to 5: how far answers stick to the evidence, and address the question. Each must reach `MinimumScore`. |
+| `lowestScore` | The lowest single score in the release. |
+| `releaseGate` | `PASSED` or `FAILED`: the release gate's decision for the agent. |
+| `created` | The version created in Foundry, for apps to pin, or `no`. |
+
+```kusto
+let app = "rsd-common-ai-services";
+customMetrics
+| where timestamp > ago(30d) and tostring(customDimensions["dfe.ai_agents.application"]) == app
+| extend run = tostring(customDimensions["dfe.ai_agents.release_gate.run_id"])
+| where isnotempty(run)
+| extend agent = tostring(customDimensions["gen_ai.agent.name"]),
+    outcome = tostring(coalesce(customDimensions["dfe.ai_agents.release_gate.outcome"], customDimensions["dfe.ai_agents.guardrail.outcome"])),
+    testCase = tostring(customDimensions["dfe.ai_agents.release_gate.test_case"]),
+    metric = tostring(customDimensions["gen_ai.evaluation.name"]),
+    version = tostring(customDimensions["gen_ai.agent.version"])
+| summarize started = min(timestamp),
+    guardrailPassed = countif(name == "dfe.ai_agents.guardrail.checks" and outcome == "passed"),
+    guardrailChecks = countif(name == "dfe.ai_agents.guardrail.checks"),
+    casesPassed = tolong(sumif(valueSum, name == "dfe.ai_agents.release_gate.test_cases" and outcome == "passed")),
+    attacksBlocked = tolong(sumif(valueSum, name == "dfe.ai_agents.release_gate.test_cases" and outcome == "blocked_by_guardrail")),
+    failedCases = make_set_if(testCase, name == "dfe.ai_agents.release_gate.test_cases" and outcome == "failed"),
+    groundedness = round(avgif(valueSum / valueCount, name == "dfe.ai_agents.release_gate.score" and metric == "Groundedness"), 2),
+    relevance = round(avgif(valueSum / valueCount, name == "dfe.ai_agents.release_gate.score" and metric == "Relevance"), 2),
+    lowestScore = round(minif(valueMin, name == "dfe.ai_agents.release_gate.score"), 2),
+    gate = take_anyif(outcome, name == "dfe.ai_agents.release_gate.agents"),
+    createdVersion = take_anyif(version, name == "dfe.ai_agents.agents.provisioned")
+    by run, agent
+// Passed when a check in the run passed, e.g. once ApplyAsync put the guardrail in place.
+| extend guardrail = case(guardrailPassed > 0, "passed", guardrailChecks > 0, "FAILED", "not checked"),
+    releaseGate = case(gate == "passed", "PASSED", gate == "failed", "FAILED", "not finished"),
+    created = iif(isnotempty(createdVersion), strcat("yes, version ", createdVersion), "no")
+| project started, run, agent, guardrail, casesPassed, attacksBlocked, failedCases, groundedness, relevance, lowestScore,
+    releaseGate, created
+| order by started desc, agent asc
 ```
 
-On success it prints the versions for consuming apps to pin:
+**Why a release failed**, one row per reason, marked `guardrail` or `evaluation`. Set `runId` from the query above, or
+from the log line `Release run <id> started`. Each reason is logged as an error with the fields `ReleaseRunId`,
+`AgentName`, `ReleaseSection` and `ReleaseProblem`, so the query never depends on a message's wording:
 
-```json
-{ "AiAgents": { "ExternallyManagedAgents": { "rsd-establishment-agent": "1", "rsd-ofsted-agent": "1", "rsd-trust-agent": "1" } } }
+```kusto
+let app = "rsd-common-ai-services";
+let runId = "<run id>";
+traces
+| where timestamp > ago(30d) and cloud_RoleName == app
+| where tostring(customDimensions.ReleaseRunId) == runId and isnotempty(customDimensions.ReleaseSection)
+| project agent = tostring(customDimensions.AgentName), section = tostring(customDimensions.ReleaseSection),
+    reason = tostring(customDimensions.ReleaseProblem)
+| order by agent asc, section asc
 ```
 
-| Exit code | Meaning |
+**Tokens and cost per agent, per day.** Test copies count under their agent's name, and scoring under
+`answer-judge-*`:
+
+```kusto
+let app = "rsd-common-ai-services";
+customMetrics
+| where timestamp > ago(30d) and tostring(customDimensions["dfe.ai_agents.application"]) == app
+| where name in ("gen_ai.client.inference.usage.input_tokens", "gen_ai.client.inference.usage.output_tokens", "dfe.ai_agents.cost")
+| summarize inputTokens = tolong(sumif(valueSum, name endswith "input_tokens")),
+    outputTokens = tolong(sumif(valueSum, name endswith "output_tokens")),
+    cost = round(sumif(valueSum, name == "dfe.ai_agents.cost"), 4)
+    by day = bin(timestamp, 1d), agent = tostring(customDimensions["gen_ai.agent.name"]),
+    model = tostring(customDimensions["gen_ai.response.model"])
+| extend totalTokens = inputTokens + outputTokens
+| order by day desc, cost desc
+```
+
+**Tokens and cost of one release, per agent.** Token metrics don't carry the run id, so this takes everything the app
+recorded while the release ran:
+
+```kusto
+let app = "rsd-common-ai-services";
+let runId = "<run id>";
+let window = customMetrics
+    | where timestamp > ago(30d) and tostring(customDimensions["dfe.ai_agents.application"]) == app
+    | where tostring(customDimensions["dfe.ai_agents.release_gate.run_id"]) == runId
+    | summarize started = min(timestamp) - 5m, finished = max(timestamp) + 5m;
+customMetrics
+| where timestamp between (toscalar(window | project started) .. toscalar(window | project finished))
+| where tostring(customDimensions["dfe.ai_agents.application"]) == app
+| where name in ("gen_ai.client.inference.usage.input_tokens", "gen_ai.client.inference.usage.output_tokens", "dfe.ai_agents.cost")
+| summarize inputTokens = tolong(sumif(valueSum, name endswith "input_tokens")),
+    outputTokens = tolong(sumif(valueSum, name endswith "output_tokens")),
+    cost = round(sumif(valueSum, name == "dfe.ai_agents.cost"), 4)
+    by agent = tostring(customDimensions["gen_ai.agent.name"])
+| extend totalTokens = inputTokens + outputTokens
+| order by cost desc
+```
+
+**Errors**, newest first:
+
+```kusto
+let app = "rsd-common-ai-services";
+union traces, exceptions
+| where timestamp > ago(30d) and cloud_RoleName == app and severityLevel >= 3
+| project timestamp, error = coalesce(message, outerMessage), exception = innermostMessage, instance = cloud_RoleInstance
+| order by timestamp desc
+```
+
+`releaseGate` can be `PASSED` with `created` still `no` if provisioning then failed, e.g. a missing role: the errors
+query shows the Azure error.
+
+### Logs
+
+Serilog writes every step to the **console**, and only errors to Application Insights (the `traces` and `exceptions`
+tables). Its settings are all in the `Serilog` section of `appsettings.json`. `MinimumLevel:Default` sets the console
+level for this app and the agents library:
+
+| `Default` | The console shows |
 | --- | --- |
-| 0 | Provisioned |
-| 1 | Unexpected failure (stack trace logged) |
-| 2 | Release gate failed; nothing provisioned |
-| 3 | Settings missing or invalid, or credentials rejected |
-| 4 | Azure refused a request, e.g. missing role |
-| 5 | Cancelled or timed out |
+| `Error` | Failures only |
+| `Warning` | Also each failed test case and agent |
+| `Information` (default) | Also every step: start, guardrail check, each test case, judge scores, baselines, reports, each agent's guardrail and evaluation result, and the provisioned versions |
 
-### Console output
-
-While it runs, it logs its progress: the judge setting, each agent as it's tested, every test case's result, each
-agent's scores and report path, and each agent's Foundry version as it's provisioned.
+`MinimumLevel:Override` keeps .NET's and Azure's own logs (`Microsoft`, `System`, `Azure`, `OpenTelemetry`) at
+`Error`, so host startup, HTTP request lines and framework warnings don't bury the steps; only their errors show. Leave
+`Default` at `Information`: at `Error` the console shows nothing until a failure.
 
 ```text
-10:42:03 info: ...AgentProvisioningService[0] Running release checks for 3 agents: rsd-establishment-agent, ...
-10:42:03 info: ...AgentReleaseGate[0] Testing rsd-establishment-agent with 7 test cases on a temporary copy
-10:42:31 info: ...AgentReleaseGate[0] rsd-establishment-agent / capacity-and-occupancy: passed
-10:42:31 warn: ...AgentReleaseGate[0] rsd-establishment-agent / local-mp: failed: Doesn't mention "Alex Example"
+14:02:11 INF Provisioning 2 agents: rsd-establishment-agent, rsd-trust-agent
+14:02:11 INF Release run 0199f1c2a7b84e6f9d3c5b1a2e4f6789 started; its metrics carry this id as dfe.ai_agents.release_gate.run_id
+14:02:11 INF Checking the Foundry guardrail rsd-common-agents-guardrail
+14:02:12 INF The Foundry guardrail rsd-common-agents-guardrail is in place
+14:02:12 INF Testing rsd-establishment-agent with 29 test cases on a temporary copy
+14:02:20 INF rsd-trust-agent / evaluation/trust-profile: passed
+14:02:21 WRN The question matched the blocklist 'personal-identifiers' for rsd-trust-agent, so its prompt wasn't sent
+14:02:21 INF rsd-trust-agent / guardrail/personal-identifier: blocked by the guardrail, as this case allows
+14:04:51 INF rsd-establishment-agent average judge scores: Groundedness 4.92, Relevance 4.85 (3 cases expecting a refusal not scored)
+14:04:51 INF rsd-establishment-agent passed its release checks. Report: …/evaluation-reports/rsd-establishment-agent.json
+14:04:51 INF rsd-establishment-agent: guardrail passed, evaluation passed
+14:05:30 INF rsd-establishment-agent is at version 7; apps should pin this version
 ```
 
-Progress is controlled by log levels in `appsettings.json`, so turning it off needs no code change. Set these two to
-`Warning` to show only failed test cases and other problems, or `None` to show nothing until the end:
-
-```json
-"Logging": { "LogLevel": { "Dfe.Common.AI.Services.Application": "Warning", "GovUK.Dfe.CoreLibs.AiAgents": "Warning" } }
-```
-
-Or per run, without editing the file: `Logging__LogLevel__Dfe.Common.AI.Services.Application=Warning`. The final
-result, the versions or the error that stopped the run, is always shown.
+The `WRN` line for a `guardrail/` case is expected: it's the guardrail doing its job. To change the level for one run,
+set `Serilog__MinimumLevel__Default=Warning`. Test cases run side by side, so lines from different agents interleave.

@@ -1,0 +1,10 @@
+{
+  "prompt": "What proportion of pupils across trust TR99005 are eligible for free school meals?",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ndate_established: 14 March 2019\nnumber_in_trust: 1\npipeline_count: 0\naggregate_demographic: Pupils eligible for free school meals: 18.6%; pupils receiving SEN support: 11.4%",
+  "mustMention": [
+    "18.6",
+    "Hillside Learning Trust"
+  ],
+  "mustNotMention": [],
+  "group": "single-academy-trust"
+}
