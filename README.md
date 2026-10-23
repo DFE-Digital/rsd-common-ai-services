@@ -9,7 +9,7 @@ Provisions the common RSD AI services: Azure AI Search indexes (`terraform/`) an
 | `rsd-establishment-agent` | `Application/Prompts/Establishment.md` | `ReleaseGate/TestCases/rsd-establishment-agent/` |
 | `rsd-trust-agent` | `Application/Prompts/Trust.md` | `ReleaseGate/TestCases/rsd-trust-agent/` |
 
-The establishment agent also answers Ofsted questions, from `establishment_index` and `ofsted_index` evidence.
+
 
 - `Dfe.Common.AI.Services.Application`: the agents (`CommonAgents`), their prompts and answer checks, and the
   provisioning logic, built on `GovUK.Dfe.AI.Agents`.
@@ -84,24 +84,13 @@ The service principal in `AiAgents:Authentication` needs:
 
 | Role | Scope | Why |
 | --- | --- | --- |
-| **Foundry User** (formerly Azure AI User) | Foundry project | Create agent versions, run and delete test copies, judge calls |
+| **Foundry User** | Foundry project | Create agent versions, run and delete test copies, judge calls |
 | **Reader** | Foundry resource | Check the guardrail and blocklist, which the job never creates or changes |
 | **Cognitive Services User** | Foundry resource | Scan questions and evidence with Prompt Shields (`Guardrails:ScanPrompts`, `ScanEvidence`), as Foundry's guardrail doesn't run for these agents |
 
-With `PublishToFoundry`, give **Foundry User** on the Foundry **resource** instead of both: Microsoft requires it there for
-evaluations that call a model, and it includes Reader.
-
-Whoever creates the guardrail in the portal needs **Foundry Account Owner** on the Foundry resource.
-
-Apps that run the agents need **Foundry User** on the project, **Reader** and **Cognitive Services User** on the Foundry
-resource, and **Search Index Data Reader** on Azure AI Search. Application Insights needs no role (the connection string is enough).
-
-```sh
-FOUNDRY=/subscriptions/<subscription id>/resourceGroups/<resource group>/providers/Microsoft.CognitiveServices/accounts/<resource>
-az role assignment create --assignee <client id> --role "53ca6127-db72-4b80-b1b0-d745d6d5456d" --scope $FOUNDRY/projects/<project>   # Foundry User
-az role assignment create --assignee <client id> --role "Reader" --scope $FOUNDRY
-az role assignment create --assignee <client id> --role "a97b65f3-24c7-4388-baec-2e87135dc908" --scope $FOUNDRY   # Cognitive Services User
-```
+> **Note**
+> * With `PublishToFoundry`, give **Foundry User** on the Foundry **resource** instead of both: Microsoft requires it there for evaluations that call a model, and it includes Reader.
+> *  Apps that run the agents need **Foundry User** on the project, **Reader** and **Cognitive Services User** on the Foundry resource, and **Search Index Data Reader** on Azure AI Search.
 
 Use role IDs for Foundry roles while Microsoft renames them
 ([RBAC for Foundry](https://learn.microsoft.com/azure/foundry/concepts/rbac-foundry)). New roles take a few minutes to
@@ -120,17 +109,9 @@ Every agent (`CommonAgents`) enforces these wherever it runs, so consuming apps 
 - **Shared by several apps:** the agents serve multiple AI apps. Each request stands alone (nothing carries over from
   earlier questions, and the agent never guesses which app is asking), and the same question with the same evidence gets
   the same answer shape for every app. Tailoring answers to an app's users is that app's job.
-- **Self-contained:** answers start with the answer, with no greeting or preamble, and name each school or trust with
-  its URN or trust reference number. So another AI app, e.g. one combining several agents' answers, can use them as
-  they are.
 - **Layout is the app's:** by default plain Markdown (paragraphs and lists, no headings or tables). An app can ask for
   its own layout in the question, e.g. a starting heading, tables, or a marker line its code reads (as briefing-tool's
   `{{city: …}}`), and the agent follows it, still citing every fact and ending with the Sources list.
-- **Evidence as the index writes it:** six-digit academic years ("202324") become "2023/24"; Attainment 8, Progress 8
-  and EBacc figures are scores, not percentages; Ofsted judgements carry the inspection date, not the publication date;
-  a record that appears more than once is given once, citing every copy.
-- **Complete overviews:** asked for everything about a school or trust, the agent covers every fact in the evidence in
-  a fixed order, then says which topics the evidence doesn't include.
 - **Expected outcomes and validation:** an app may say what it expects (e.g. "we expect Outstanding") to check the
   answer. The agent never adopts it: it answers from the evidence and says plainly when the evidence differs. An app
   can also validate each answer (`validateOutput` on `RunAsync`): a rejected answer goes back to the agent once with
@@ -157,23 +138,6 @@ A failed check sends the answer back to the agent once with the reason; if the s
 The library turns each `[Evidence n]` into a citation readers can use, after the answer passes its checks, with no
 settings. Pass the search result itself as evidence (`evidence: searchResult`, not `searchResult.Text`), and render
 answers as HTML or Markdown with inline HTML.
-
-| The search result has | Readers see |
-| --- | --- |
-| A content field whose whole value is a web address | `[<a href="https://…">start of the record…</a>]`, the record linked to that address |
-| No web address | `[start of the record…]`, its first 80 or so characters |
-
-Each `ContentFields` value reaches the model labelled with its field, one per line (e.g. `number_on_roll: 398`), as in
-the test cases. The order of `ContentFields` decides the citation, so in each app:
-
-- **Put the name and identifier first** (`establishment_name`, `establishment_urn`; `title`; `trust_name`,
-  `trust_reference_number`), so each citation starts with them.
-- **Include `source_url`, before any other web address.** The first field holding a web address becomes the link and
-  isn't sent to the model. In `establishment_index`, `establishment_website` is also a web address: if it comes first,
-  or `source_url` is empty, citations link to the school's own website and the agent can't see the website to answer
-  questions about it.
-- Without `source_url` filled, citations still show the record's name and identifier, just without a link. The search
-  index pipeline can fill it from each record's identifier (e.g. the GIAS address from the URN), rather than per record.
 
 ## Release gate
 
@@ -265,18 +229,10 @@ Models are reached through an API Management connection, so the guardrail goes o
   | `ScanPrompts` | Jailbreak attempts in the question | [Prompt Shields](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection) |
   | `ScanEvidence` | Instructions planted in the evidence | Prompt Shields |
 
-  A block fails the run as a guardrail block, with the reason in the log, e.g. "The question matched the blocklist
-  'personal-identifiers' for rsd-trust-agent, so its prompt wasn't sent". The service principal needs **Cognitive
-  Services User** (see [Roles](#roles)); if input can't be scanned, the run fails rather than sending it. The
-  `guardrail/` test cases prove each check works on every release.
-- **Still not covered by the app:** harmful content (`BlockFrom`) and protected material in answers. Keep the backend
-  Azure OpenAI deployment's own content filter on for those.
-
-The `AiAgents:Guardrails` settings describe the minimum the portal guardrail must meet; change both together. Apps that
-run the agents should leave `RequireAtStartup` `true`, so they won't start on agent versions without it.
-
-If the API Management gateway also blocks content itself, add its error to `AiAgents:Foundry:GatewayGuardrailErrors`
-(`Status` and `Code`, taken from one real blocked call), so those blocks count as guardrail blocks.
+>**Note**
+> * A block fails the run as a guardrail block, with the reason in the log, e.g. "The question matched the blocklist 'personal-identifiers' for rsd-trust-agent, so its prompt wasn't sent". The service principal needs **Cognitive Services User** (see [Roles](#roles)); if input can't be scanned, the run fails rather than sending it. The `guardrail/` test cases prove each check works on every release.
+> *The `AiAgents:Guardrails` settings describe the minimum the portal guardrail must meet; change both together. Apps that run the agents should leave `RequireAtStartup` `true`, so they won't start on agent versions without it.
+> * If the API Management gateway also blocks content itself, add its error to `AiAgents:Foundry:GatewayGuardrailErrors` (`Status` and `Code`, taken from one real blocked call), so those blocks count as guardrail blocks.
 
 ### Create the guardrail
 
