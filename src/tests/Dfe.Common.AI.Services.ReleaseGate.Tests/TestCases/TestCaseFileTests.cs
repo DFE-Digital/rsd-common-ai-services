@@ -1,4 +1,5 @@
-using GovUK.Dfe.AI.Agents.Release;
+using GovUK.Dfe.AI.Agents.Options;
+using GovUK.Dfe.AI.Agents.Quality;
 
 namespace Dfe.Common.AI.Services.ReleaseGate.Tests.TestCases;
 
