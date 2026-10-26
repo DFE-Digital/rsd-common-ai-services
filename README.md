@@ -31,6 +31,33 @@ dotnet run --project src/Dfe.Common.Ai.Services.App   # provisions in the config
 dotnet test                                           # tests; no Azure calls
 ```
 
+### Run from GitHub Actions
+
+**Actions → Provision agents → Run workflow**, then choose the environment. The workflow builds and tests the job,
+then runs it with that environment's settings. It fails if the release gate blocks or provisioning fails (see the
+[exit codes](#output)). Its summary shows the versions to pin, and its `evaluation-reports-<environment>` artifact has
+every answer and score.
+
+Set up each environment once, in **Settings → Environments** (e.g. `dev`, `test`, `prod`):
+
+- **Deployment branches and tags:** selected branches, `main` only. Agents are provisioned only from reviewed code; the
+  workflow also fails straight away if run from another branch.
+- **Required reviewers** on production, so no one provisions there alone.
+- **The values below.**
+
+| Name | Type | Setting it fills |
+| --- | --- | --- |
+| `FOUNDRY_ENDPOINT` | Variable | `AiAgents:Foundry:Endpoint` |
+| `FOUNDRY_DEFAULT_MODEL` | Variable | `AiAgents:Foundry:DefaultModel` |
+| `JUDGE_MODEL` | Variable | `AiAgents:Evaluation:JudgeModel`; leave unset for no scores |
+| `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` | Variables | `AiAgents:Authentication:TenantId`, `ClientId` |
+| `AZURE_CLIENT_SECRET` | Secret | `AiAgents:Authentication:ClientSecret` |
+| `GUARDRAILS_SUBSCRIPTION_ID`, `GUARDRAILS_RESOURCE_GROUP` | Variables | `AiAgents:Guardrails:SubscriptionId`, `ResourceGroup` |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Secret | Where the job's metrics and errors go |
+
+A missing value fails the run before anything is created, listing every setting that's missing. Only one run per
+environment goes at a time.
+
 ### Settings
 
 Set these as user secrets or environment variables (`AiAgents__Foundry__Endpoint`). The rest have defaults in
