@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.3258" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.2796" />
-    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.2771" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents" Version="0.0.1-prerelease.3513" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Evaluation" Version="0.0.1-prerelease.2966" />
+    <PackageReference Include="GovUK.Dfe.AI.Agents.Guardrails" Version="0.0.1-prerelease.3026" />
   </ItemGroup>
 
   <ItemGroup>
