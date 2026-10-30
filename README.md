@@ -82,7 +82,7 @@ Release gate settings (`AiAgents:Evaluation:ReleaseGate`). The gate itself is th
 | `MaxGroupGap` | 0.5 | Largest score gap between test case groups. Remove it to turn the check off |
 | `Repeats` | 1 | Runs per test case; scores are averaged. Each repeat costs another run and judge call |
 | `MaxParallelTestRuns` | 8 | Test cases run at once, across both agents. Each also makes two judge calls, so keep within the model's quota: lower it if runs fail with rate limits (429) |
-| `PublishToFoundry` | false | Also sends each release's answers to a Foundry evaluation (see [Results in Foundry](#results-in-foundry)) |
+| `PublishToFoundry` | false | Also stores each release's prompts, evidence and answers in a Foundry evaluation (see [Results in Foundry](#results-in-foundry)) |
 
 ### Output
 
