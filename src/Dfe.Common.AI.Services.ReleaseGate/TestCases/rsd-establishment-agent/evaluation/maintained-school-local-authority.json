@@ -1,0 +1,10 @@
+{
+  "prompt": "Which local authority maintains URN 999108, and what type of school is it?",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999108\nestablishment_name: St Anne's CofE Primary School\nestablishment_type: Voluntary aided school\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire",
+  "mustMention": [
+    "Westshire",
+    "Voluntary aided"
+  ],
+  "mustNotMention": [],
+  "group": "maintained-school"
+}

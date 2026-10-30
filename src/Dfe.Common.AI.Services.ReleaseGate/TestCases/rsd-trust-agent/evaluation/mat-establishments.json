@@ -1,0 +1,10 @@
+{
+  "prompt": "Which academies are in trust TR99003?",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Riverside Academies Trust\ntrust_reference_number: TR99003\ntrust_type: Multi-academy trust\ngroup_status: Open\ndate_established: 3 April 2014\nnumber_in_trust: 26\npipeline_count: 11\nestablishments_details: Riverside Primary Academy (URN 999112); Riverside High Academy (URN 999113)",
+  "mustMention": [
+    "Riverside Primary Academy",
+    "Riverside High Academy"
+  ],
+  "mustNotMention": [],
+  "group": "multi-academy-trust"
+}
