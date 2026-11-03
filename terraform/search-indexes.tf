@@ -66,7 +66,7 @@ resource "azapi_data_plane_resource" "search_index" {
             ]
 
             prioritizedKeywordsFields = [
-              for field_name in each.value.semantic.keywordFields : {
+              for field_name in try(each.value.semantic.keywordFields, []) : {
                 fieldName = field_name
               }
             ]
