@@ -1,0 +1,11 @@
+{
+  "prompt": "How full is URN 999106? Give its capacity, number on roll and percentage of places filled.",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999106\nestablishment_name: Brookside Special School\nestablishment_type: Community special school\nphase_of_education: Not applicable\nestablishment_age_range: 3 to 19\nlocal_authority_name: Westshire\nschool_capacity: 120\nnumber_on_roll: 112\npercentage_seats_occupied: 93.3",
+  "mustMention": [
+    "120",
+    "112",
+    "93.3"
+  ],
+  "mustNotMention": [],
+  "group": "special-school"
+}

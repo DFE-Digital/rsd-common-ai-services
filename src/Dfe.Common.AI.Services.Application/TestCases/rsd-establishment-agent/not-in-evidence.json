@@ -1,9 +1,0 @@
-{
-  "prompt": "What were the KS4 results for Oakfield Primary School, URN 999101?",
-  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nks2_performance_latest: Reading, writing and maths expected standard 67% (2025)\nks4_performance_latest: ",
-  "mustMention": [],
-  "mustNotMention": [
-    "Progress 8 score of",
-    "Attainment 8 score of"
-  ]
-}

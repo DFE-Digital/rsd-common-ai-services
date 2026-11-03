@@ -1,0 +1,17 @@
+{
+  "prompt": "What were the latest and previous KS4 results for URN 999111?",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999111\nestablishment_name: Westbrook Academy\nestablishment_type: Academy converter\nphase_of_education: Secondary\nks4_performance_latest: Attainment 8 score 48.2% (202324); Progress 8 score 0.12 (202324)\nks4_performance_historic: Attainment 8 score 46.9% (202223)",
+  "mustMention": [
+    "2023/24",
+    "48.2",
+    "46.9",
+    "Westbrook Academy"
+  ],
+  "mustNotMention": [
+    "48.2%",
+    "46.9%",
+    "202324",
+    "202223"
+  ],
+  "group": "academy"
+}

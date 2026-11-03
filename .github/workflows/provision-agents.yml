@@ -1,0 +1,90 @@
+name: Provision agents
+
+# Run by hand. Tests the agents in the release gate and, only if every one passes, creates their new versions in the
+# chosen environment's Foundry project. Each environment's settings are GitHub environment variables and secrets (see
+# README, "Run from GitHub Actions"); protect production with required reviewers on its environment. It runs only from
+# main. Actions are pinned to a commit, with its release as a comment, so a moved tag can't change what runs.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: The environment to create the agents in
+        type: environment
+        required: true
+
+permissions:
+  contents: read
+
+# One run per environment at a time, so two runs never provision the same agents together.
+concurrency:
+  group: provision-agents-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  provision:
+    name: Provision agents (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 60
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      # Agents are only provisioned from reviewed code. The environment's deployment branch rule (main only) enforces
+      # this too, so a branch that removes this step still can't reach the environment's secrets.
+      - name: Check the run is from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this workflow from main: agents are only provisioned from reviewed code."
+          exit 1
+
+      - name: Check out code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build Dfe.Common.Ai.Services.slnx --configuration Release
+
+      # No Azure calls: a failing test stops the run before anything reaches Foundry.
+      - name: Test
+        run: dotnet test Dfe.Common.Ai.Services.slnx --configuration Release --no-build
+
+      - name: Provision agents
+        env:
+          AiAgents__Foundry__Endpoint: ${{ vars.FOUNDRY_ENDPOINT }}
+          AiAgents__Foundry__DefaultModel: ${{ vars.FOUNDRY_DEFAULT_MODEL }}
+          AiAgents__Evaluation__JudgeModel: ${{ vars.JUDGE_MODEL }}
+          AiAgents__Authentication__TenantId: ${{ vars.AZURE_TENANT_ID }}
+          AiAgents__Authentication__ClientId: ${{ vars.AZURE_CLIENT_ID }}
+          AiAgents__Authentication__ClientSecret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AiAgents__Guardrails__SubscriptionId: ${{ vars.GUARDRAILS_SUBSCRIPTION_ID }}
+          AiAgents__Guardrails__ResourceGroup: ${{ vars.GUARDRAILS_RESOURCE_GROUP }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+        # Fails the job with the app's exit code (see README) if the release gate blocks or provisioning fails. The
+        # versions to pin are the JSON the app prints last.
+        run: |
+          dotnet run --project src/Dfe.Common.Ai.Services.App --configuration Release --no-build | tee provision-output.txt
+          {
+            echo "### Agent versions in $TARGET_ENVIRONMENT"
+            echo
+            echo "Pin these in each app that runs the agents:"
+            echo
+            echo '```json'
+            awk '/^\{$/ { found = 1 } found' provision-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Every answer, score and failure, passed or failed, to read or to copy into Baselines.
+      - name: Keep the evaluation reports
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: evaluation-reports-${{ inputs.environment }}
+          path: evaluation-reports/
+          if-no-files-found: ignore
+          retention-days: 30

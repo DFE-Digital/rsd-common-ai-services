@@ -1,8 +1,0 @@
-{
-  "prompt": "When was trust TR99005 established?",
-  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ndate_established: 14 March 2019\nnumber_in_trust: 1",
-  "mustMention": [
-    "2019"
-  ],
-  "mustNotMention": []
-}

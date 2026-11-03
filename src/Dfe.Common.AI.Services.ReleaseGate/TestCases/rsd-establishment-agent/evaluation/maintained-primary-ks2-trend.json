@@ -1,0 +1,11 @@
+{
+  "prompt": "How has KS2 performance changed at URN 999108?",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999108\nestablishment_name: St Anne's CofE Primary School\nestablishment_type: Voluntary aided school\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nks2_performance_latest: Reading, writing and maths expected standard 64% (2025)\nks2_performance_historic: 60% (2024); 57% (2023)",
+  "mustMention": [
+    "64%",
+    "57%",
+    "St Anne"
+  ],
+  "mustNotMention": [],
+  "group": "maintained-school"
+}

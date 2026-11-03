@@ -1,0 +1,10 @@
+{
+  "prompt": "Which local authority is URN 999106 in, and what age range does it take?",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999106\nestablishment_name: Brookside Special School\nestablishment_type: Community special school\nphase_of_education: Not applicable\nestablishment_age_range: 3 to 19\nlocal_authority_name: Westshire\n",
+  "mustMention": [
+    "Westshire",
+    "3 to 19"
+  ],
+  "mustNotMention": [],
+  "group": "special-school"
+}

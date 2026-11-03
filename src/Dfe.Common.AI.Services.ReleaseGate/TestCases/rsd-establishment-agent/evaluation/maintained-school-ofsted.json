@@ -1,0 +1,13 @@
+{
+  "prompt": "What was the outcome of the latest Ofsted inspection of URN 999107?",
+  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999107\nestablishment_name: Riverside High School\nestablishment_type: Community school\nphase_of_education: Secondary\nestablishment_age_range: 11 to 16\nlocal_authority_name: Westshire\n\n--- ofsted_index Evidence 2 ---\ntitle: Riverside High School (URN 999107) inspection report, 6 June 2023\ncontent: Inspection type: Section 5. Overall effectiveness: Good. The quality of education: Good. Behaviour and attitudes: Good. Leadership and management: Good. Safeguarding is effective.",
+  "mustMention": [
+    "Good",
+    "2023"
+  ],
+  "mustNotMention": [
+    "Outstanding",
+    "Inadequate"
+  ],
+  "group": "maintained-school"
+}

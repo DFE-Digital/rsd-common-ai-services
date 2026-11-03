@@ -1,14 +1,15 @@
 using System.Text.Json;
 using Dfe.Common.AI.Services.Application;
 using Dfe.Common.AI.Services.Application.Agents.Interfaces;
+using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-using var errorLogging = LoggerFactory.Create(logging => logging.AddSimpleConsole(o => o.SingleLine = true));
-var errorLogger = errorLogging.CreateLogger<Program>();
+IHost? host = null;
 
 try
 {
@@ -21,7 +22,7 @@ try
 
     builder.Services.AddAgentProvisioning(builder.Configuration);
 
-    using var host = builder.Build();
+    host = builder.Build();
     await host.StartAsync();
 
     var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -43,5 +44,15 @@ try
 }
 catch (Exception ex)
 {
-    return (int)ErrorHandler.Handle(ex, errorLogger);
+    // Before the host exists there's nowhere to log to; the line below still says why.
+    var logger = host?.Services.GetRequiredService<ILogger<Program>>() ?? (ILogger)NullLogger.Instance;
+    var exitCode = ErrorHandler.Handle(ex, logger);
+
+    // One line that always reaches whoever ran the job, even if logging isn't set up yet.
+    await Console.Error.WriteLineAsync(ErrorHandler.Summarise(exitCode, ex));
+    return (int)exitCode;
+}
+finally
+{
+    host?.Dispose();
 }

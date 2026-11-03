@@ -1,0 +1,14 @@
+{
+  "prompt": "Using only the evidence supplied, analyse \"Northfield Learning Trust\" (URN/TRN: TR99001) and report your findings. Start with the heading \"## About the trust\" and give its facts as a table with the columns Field and Detail.",
+  "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Northfield Learning Trust\ntrust_reference_number: TR99001\ntrust_type: Multi-academy trust\ngroup_status: Open\ndate_established: 1 September 2015\nnumber_in_trust: 17\npipeline_count: 4\ntrust_address: 1 Example Road, Westshire",
+  "mustMention": [
+    "## About the trust",
+    "Field",
+    "Detail",
+    "Northfield Learning Trust",
+    "TR99001",
+    "17",
+    "Sources"
+  ],
+  "mustNotMention": []
+}
