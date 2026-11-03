@@ -64,6 +64,12 @@ resource "azapi_data_plane_resource" "search_index" {
                 fieldName = field_name
               }
             ]
+
+            prioritizedKeywordsFields = [
+              for field_name in each.value.semantic.keywordFields : {
+                fieldName = field_name
+              }
+            ]
           }
         }
       ]
