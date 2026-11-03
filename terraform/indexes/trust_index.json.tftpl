@@ -40,7 +40,7 @@
     {
       "name": "date_established",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -52,7 +52,7 @@
     {
       "name": "number_in_trust",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -64,7 +64,7 @@
     {
       "name": "trust_type",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -76,7 +76,7 @@
     {
       "name": "group_status",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -88,7 +88,7 @@
     {
       "name": "trust_address",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -100,7 +100,7 @@
     {
       "name": "pipeline_count",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -245,12 +245,44 @@
   "semantic": {
     "titleField": "trust_name",
     "contentFields": [
-      "trust_type",
-      "group_status",
-      "trust_address"
+      "trust_name"
     ],
     "keywordFields": [
       "trust_reference_number"
     ]
+  },
+  "vectorSearch": {
+    "algorithms": [
+      {
+        "name": "rsd-vector-config",
+        "kind": "hnsw",
+        "hnswParameters": {
+          "metric": "cosine",
+          "m": 4,
+          "efConstruction": 400,
+          "efSearch": 500
+        }
+      }
+    ],
+    "profiles": [
+      {
+        "name": "rsd-vector-profile",
+        "algorithm": "rsd-vector-config",
+        "vectorizer": "rsd-vectorizer"
+      }
+    ],
+    "vectorizers": [
+      {
+        "name": "rsd-vectorizer",
+        "kind": "azureOpenAI",
+        "azureOpenAIParameters": {
+          "resourceUri": "https://api.education.gov.uk",
+          "deploymentId": "text-embedding-3-large",
+          "apiKey": "<redacted>",
+          "modelName": "text-embedding-3-large"
+        }
+      }
+    ],
+    "compressions": []
   }
 }
