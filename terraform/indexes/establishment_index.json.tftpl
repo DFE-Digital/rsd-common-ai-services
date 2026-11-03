@@ -40,7 +40,7 @@
     {
       "name": "local_authority_name",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -52,7 +52,7 @@
     {
       "name": "associated_trust_name",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -64,7 +64,7 @@
     {
       "name": "establishment_type",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -76,7 +76,7 @@
     {
       "name": "phase_of_education",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -88,7 +88,7 @@
     {
       "name": "open_date",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -100,7 +100,7 @@
     {
       "name": "close_date",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -112,7 +112,7 @@
     {
       "name": "establishment_age_range",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -160,7 +160,7 @@
     {
       "name": "linked_to_diocese",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -172,7 +172,7 @@
     {
       "name": "parliamentary_constituency",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -184,7 +184,7 @@
     {
       "name": "mp_name",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -196,7 +196,7 @@
     {
       "name": "mp_political_party",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -208,7 +208,7 @@
     {
       "name": "establishment_address",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": true,
       "retrievable": true,
       "stored": true,
@@ -220,7 +220,7 @@
     {
       "name": "establishment_website",
       "type": "Edm.String",
-      "searchable": true,
+      "searchable": false,
       "filterable": false,
       "retrievable": true,
       "stored": true,
@@ -353,18 +353,10 @@
   "semantic": {
     "titleField": "establishment_name",
     "contentFields": [
-      "establishment_address",
-      "local_authority_name",
-      "associated_trust_name",
-      "establishment_type",
-      "phase_of_education",
-      "mp_name",
-      "parliamentary_constituency"
+      "establishment_name"
     ],
     "keywordFields": [
-      "establishment_urn",
-      "establishment_type",
-      "local_authority_name"
+      "establishment_urn"
     ]
   }
 }
