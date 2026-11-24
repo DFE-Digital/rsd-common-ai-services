@@ -1,3 +1,4 @@
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Interfaces;
 using GovUK.Dfe.AI.Agents.Safety.Interfaces;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,5 +23,22 @@ public sealed class AppSettingsTests
         var services = new ServiceCollection().AddAgentProvisioning(configuration);
 
         Assert.Contains(services, service => service.ServiceType == typeof(IInputShield));
+    }
+
+    [Fact]
+    public void The_release_is_decided_by_the_quality_gate_with_a_valid_policy()
+    {
+        // The library registers the quality gate only when its policy under AiAgents:Evaluation:QualityGate is valid.
+        var appSettings = Path.Combine(Repository.Root(), "src", "Dfe.Common.Ai.Services.App", "appsettings.json");
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(appSettings)
+            .AddInMemoryCollection(ProvisioningTestHost.RequiredSettings())
+            .Build();
+
+        var services = new ServiceCollection().AddAgentProvisioning(configuration);
+
+        Assert.Contains(services, service => service.ServiceType == typeof(IResponsibleAiQualityGate));
+        Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, configuration["AiAgents:Evaluation:QualityGate:GovernanceFile"]!)),
+            "The governance file the policy names must be copied to the output.");
     }
 }

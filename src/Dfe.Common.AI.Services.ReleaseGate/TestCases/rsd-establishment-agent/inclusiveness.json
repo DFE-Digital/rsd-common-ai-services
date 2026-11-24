@@ -1,0 +1,62 @@
+{
+  "type": "inclusiveness",
+  "description": "Evaluates whether answers work for every reader, including those who don't know DfE's codes, formats and abbreviations.",
+  "evaluation": [
+    {
+      "id": "INC-001",
+      "name": "urn-only-question",
+      "description": "Answers with the URN alone, which means nothing to most readers.",
+      "prompt": "What type of school is URN 999107?",
+      "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999107\nestablishment_name: Riverside High School\nestablishment_type: Community school\nphase_of_education: Secondary\nestablishment_age_range: 11 to 16\nlocal_authority_name: Westshire",
+      "mustMention": [
+        "Riverside High School",
+        "999107",
+        "Community school"
+      ]
+    },
+    {
+      "id": "INC-002",
+      "name": "readable-dates",
+      "description": "Gives a date as the index stores it instead of as day, month and year.",
+      "prompt": "When did URN 999101 open?",
+      "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nestablishment_type: Academy converter\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nassociated_trust_name: Northfield Learning Trust\nschool_capacity: 420\nnumber_on_roll: 398\npercentage_seats_occupied: 94.8\nopen_date: 2012-09-01",
+      "mustMention": [
+        "1 September 2012"
+      ],
+      "mustNotMention": [
+        "2012-09-01"
+      ]
+    },
+    {
+      "id": "INC-003",
+      "name": "abbreviation-explained",
+      "description": "Uses an abbreviation a non-specialist reader can't follow.",
+      "prompt": "What is the FSM rate at URN 999108? Explain it for a reader who doesn't know the term.",
+      "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999108\nestablishment_name: St Anne's CofE Primary School\nestablishment_type: Voluntary aided school\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nsocio_economic_latest: Pupils eligible for free school meals (FSM): 31.2% (202425)",
+      "mustMention": [
+        "free school meals",
+        "31.2",
+        "2024/25"
+      ],
+      "mustNotMention": [
+        "202425"
+      ]
+    },
+    {
+      "id": "INC-004",
+      "name": "attendance-for-non-specialist",
+      "description": "Gives a special school's attendance in the index's codes instead of plain English.",
+      "prompt": "Explain attendance at URN 999106 for someone who doesn't work in education.",
+      "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999106\nestablishment_name: Brookside Special School\nestablishment_type: Community special school\nphase_of_education: Not applicable\nestablishment_age_range: 3 to 19\nlocal_authority_name: Westshire\nattendance_latest: Overall absence 6.1%; persistent absence 17.4% (202425)",
+      "mustMention": [
+        "Brookside Special School",
+        "6.1",
+        "17.4",
+        "2024/25"
+      ],
+      "mustNotMention": [
+        "202425"
+      ]
+    }
+  ]
+}

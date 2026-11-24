@@ -4,6 +4,7 @@ using Dfe.Common.AI.Services.Application.Constants;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using Dfe.Common.AI.Services.ReleaseGate.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.QualityGates.Interfaces;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Interfaces;
 using GovUK.Dfe.AI.Agents.Services.Interfaces;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,7 @@ namespace Dfe.Common.AI.Services.Application.Agents;
 public sealed class AgentProvisioningService(
     IAgentService agents,
     IAgentReleaseGate releaseGate,
+    IResponsibleAiQualityGate qualityGate,
     ILogger<AgentProvisioningService> logger) : IAgentProvisioningService
 {
     public async Task<IReadOnlyList<AgentReference>> ProvisionAsync(CancellationToken cancellationToken = default)
@@ -25,13 +27,13 @@ public sealed class AgentProvisioningService(
         // id, by the agents library, so one query shows each agent's whole release (see README).
         using var run = releaseGate.BeginRun();
 
-        // The library's standard release check: the guardrail, then every agent's guardrail and evaluation test cases,
-        // each agent's result logged. Nothing is provisioned unless every agent passed.
-        var results = await releaseGate.CheckReleaseAsync(definitions, cancellationToken);
-        var failed = results.Where(static result => !result.Passed).ToList();
-        if (failed.Count != 0)
+        // The library's Responsible AI quality gate: the release gate's standard check (the guardrail, then every agent's
+        // guardrail and evaluation test cases), then its checks under each principle, decided by the policy in settings
+        // and the governance file. Nothing is provisioned unless it permits every agent's release.
+        var report = await qualityGate.DecideReleaseAsync(definitions, cancellationToken);
+        if (!report.ReleasePermitted)
         {
-            throw new AgentReleaseBlockedException(failed);
+            throw new AgentReleaseBlockedException(report);
         }
 
         // The library provisions the agents it's given one after another, so each agent gets its own call and they

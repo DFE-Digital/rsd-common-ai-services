@@ -64,6 +64,8 @@ jobs:
           AiAgents__Guardrails__SubscriptionId: ${{ vars.GUARDRAILS_SUBSCRIPTION_ID }}
           AiAgents__Guardrails__ResourceGroup: ${{ vars.GUARDRAILS_RESOURCE_GROUP }}
           APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          # The quality gate records the commit it tested, from GITHUB_SHA; here a release without it is blocked.
+          AiAgents__Evaluation__QualityGate__RequireSourceRevision: "true"
           TARGET_ENVIRONMENT: ${{ inputs.environment }}
         # Fails the job with the app's exit code (see README) if the release gate blocks or provisioning fails. The
         # versions to pin are the JSON the app prints last.

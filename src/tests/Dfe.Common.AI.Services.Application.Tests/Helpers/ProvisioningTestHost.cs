@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Enums;
 using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Tests.Helpers;
@@ -31,6 +32,9 @@ internal sealed class ProvisioningTestHost : IDisposable
     public const string GuardrailSubscription = "00000000-0000-0000-0000-000000000000";
 
     public const string GuardrailResourceGroup = "tests";
+
+    /// <summary>The quality gate's checks that the test cases are complete enough to release on.</summary>
+    public static readonly string[] DatasetCoverageChecks = ["accountability.evaluation-dataset", "fairness.group-sample-size"];
 
     /// <summary>The settings the agents library needs to start, with telemetry optional as in local development.</summary>
     public static Dictionary<string, string?> RequiredSettings(string? judgeModel = null) => new()
@@ -81,27 +85,40 @@ internal sealed class ProvisioningTestHost : IDisposable
     public void JudgeScores(double score) =>
         Judge.EvaluateAsync(default!, default).ReturnsForAnyArgs(JudgeMetrics.All.ToDictionary(metric => metric, _ => score));
 
-    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "evaluation/case",
+    /// <summary>
+    /// Adds an evaluation case in a file of its own, as the library loads them: its name is
+    /// <c>evaluation/reliability-and-safety/&lt;id&gt;</c>.
+    /// </summary>
+    public void AddCase(string agentName, string[]? mustMention = null, string[]? mustNotMention = null, string id = "case",
         string prompt = "How many pupils are on roll?")
     {
-        // A name with a folder, e.g. "guardrail/injected-evidence", goes in that subfolder, as the app's own cases do.
-        var file = Path.Combine(TestCasesDirectory, agentName, $"{caseName}.json");
+        var file = Path.Combine(TestCasesDirectory, agentName, $"{id}.json");
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         File.WriteAllText(file, JsonSerializer.Serialize(new
         {
-            prompt,
-            evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
-            mustMention = mustMention ?? [],
-            mustNotMention = mustNotMention ?? [],
+            type = "reliability-and-safety",
+            evaluation = new[]
+            {
+                new
+                {
+                    id,
+                    description = "Gets the number of pupils on roll wrong.",
+                    prompt,
+                    evidence = "--- establishment_index Evidence 1 ---\nnumber_on_roll: 398",
+                    // Every case needs a pass condition; by default, the fact in the evidence.
+                    mustMention = mustMention ?? (mustNotMention is null ? ["398"] : []),
+                    mustNotMention = mustNotMention ?? [],
+                },
+            },
         }));
     }
 
-    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string caseName = "evaluation/case",
+    public void AddCaseForEveryAgent(string[]? mustMention = null, string[]? mustNotMention = null, string id = "case",
         string prompt = "How many pupils are on roll?")
     {
         foreach (var agent in CommonAgents.All)
         {
-            AddCase(agent.Name, mustMention, mustNotMention, caseName, prompt);
+            AddCase(agent.Name, mustMention, mustNotMention, id, prompt);
         }
     }
 
@@ -123,10 +140,36 @@ internal sealed class ProvisioningTestHost : IDisposable
     /// <param name="applicationLogLevel">
     /// Sets <c>Serilog:MinimumLevel:Default</c>, which the app's appsettings.json uses for its own and the library's logs.
     /// </param>
-    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information")
+    /// <param name="checkDatasetCoverage">
+    /// Whether the quality gate checks the test cases cover every attack, group and expectation it needs. These tests add
+    /// a case or two to exercise the job, so it's off unless a test is about it; the real cases are checked in
+    /// <c>TestCaseFileTests</c>.
+    /// </param>
+    public IAgentProvisioningService Build(string? judgeModel = null, string applicationLogLevel = "Information",
+        bool checkDatasetCoverage = false)
     {
         var settings = RequiredSettings(judgeModel);
         settings["Serilog:MinimumLevel:Default"] = applicationLogLevel;
+        foreach (var agent in CommonAgents.All)
+        {
+            settings[$"AiAgents:PromptFiles:SystemPrompts:{agent.SystemPromptKey}"] =
+                Path.Combine(AppContext.BaseDirectory, "Prompts", $"{agent.SystemPromptKey}.md");
+        }
+
+        foreach (var check in DatasetCoverageChecks)
+        {
+            settings[$"AiAgents:Evaluation:QualityGate:Checks:{check}:Enabled"] = checkDatasetCoverage.ToString();
+        }
+
+        if (!checkDatasetCoverage)
+        {
+            // These cases name no user group, so nothing can evaluate fairness.
+            var principles = Enum.GetNames<ResponsibleAiPrinciple>().Where(p => p != nameof(ResponsibleAiPrinciple.Fairness)).ToList();
+            for (var i = 0; i < principles.Count; i++)
+            {
+                settings[$"AiAgents:Evaluation:QualityGate:Principles:{i}"] = principles[i];
+            }
+        }
         settings["AiAgents:Evaluation:ReleaseGate:TestCasesDirectory"] = TestCasesDirectory;
         settings["AiAgents:Evaluation:ReleaseGate:ReportsDirectory"] = ReportsDirectory;
         settings["AiAgents:Evaluation:ReleaseGate:BaselinesDirectory"] = BaselinesDirectory;

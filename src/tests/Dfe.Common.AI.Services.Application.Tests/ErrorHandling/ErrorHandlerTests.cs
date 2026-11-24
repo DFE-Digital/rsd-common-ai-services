@@ -5,7 +5,10 @@ using Dfe.Common.AI.Services.Application.Enums;
 using Dfe.Common.AI.Services.Application.ErrorHandling;
 using Dfe.Common.AI.Services.Application.Exceptions;
 using GovUK.Dfe.AI.Agents.Evaluation.Exceptions;
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Enums;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Reporting;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Traceability;
+using GovUK.Dfe.AI.Agents.Evaluation.ValueObjects;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +23,7 @@ public sealed class ErrorHandlerTests
 
     public static TheoryData<Exception, ExitCode> Failures => new()
     {
-        { new AgentReleaseBlockedException([new AgentGateResult(AgentNames.Establishment, [], ["Failed."])]), ExitCode.ReleaseBlocked },
+        { new AgentReleaseBlockedException(BlockedRelease()), ExitCode.ReleaseBlocked },
         // A release-gate file the job can't read, such as a baseline: fixed in the repository, not by retrying.
         { new ReleaseGateException("The baseline rsd-trust-agent.json isn't a readable evaluation report."), ExitCode.InvalidConfiguration },
         { new OperationCanceledException(), ExitCode.Cancelled },
@@ -99,4 +102,17 @@ public sealed class ErrorHandlerTests
         Assert.Contains("AiAgents:Evaluation:JudgeModel", ex.Message);
         Assert.Equal(ExitCode.InvalidConfiguration, ErrorHandler.Handle(ex, NullLogger.Instance));
     }
+
+    private static QualityGateReport BlockedRelease() => new()
+    {
+        Decision = ReleaseDecision.Fail,
+        ReleasePermitted = false,
+        Reasons = ["Failed."],
+        Manifest = new ReleaseManifest
+        {
+            RunId = "run", ApplicationName = ProvisioningTestHost.ApplicationName, GeneratedAt = DateTimeOffset.UnixEpoch,
+            EvaluationFrameworkVersion = "1", PolicyFingerprint = "policy",
+        },
+        Agents = [new AgentReleaseDecision { AgentName = AgentNames.Establishment, Decision = ReleaseDecision.Fail, ReleasePermitted = false, Reasons = ["Failed."] }],
+    };
 }

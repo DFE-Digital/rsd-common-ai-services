@@ -1,4 +1,4 @@
-using GovUK.Dfe.AI.Agents.Evaluation.QualityGates;
+using GovUK.Dfe.AI.Agents.Evaluation.ResponsibleAI.Reporting;
 
 namespace Dfe.Common.AI.Services.ReleaseGate.Constants;
 
@@ -8,11 +8,18 @@ public static class Messages
     public static class Errors
     {
         /// <summary>
-        /// Why nothing was provisioned: one line per problem, each marked with its section, as the library logs it
-        /// (<see cref="AgentGateResult.ProblemLines"/>).
+        /// Why nothing was provisioned: one line per reason for each blocked agent, as the quality gate gives them, and
+        /// where its report is.
         /// </summary>
-        public static string ReleaseBlocked(IEnumerable<AgentGateResult> failed) =>
-            "No agents were provisioned because these failed their release checks:" + Environment.NewLine +
-            string.Join(Environment.NewLine, failed.SelectMany(static result => result.ProblemLines()));
+        public static string ReleaseBlocked(QualityGateReport report)
+        {
+            ArgumentNullException.ThrowIfNull(report);
+
+            var lines = report.Agents.Where(static agent => !agent.ReleasePermitted)
+                .SelectMany(static agent => agent.Reasons.Select(reason => $"- {agent.AgentName}: {reason}"));
+            var message = "No agents were provisioned because the quality gate blocked their release:" + Environment.NewLine +
+                string.Join(Environment.NewLine, lines);
+            return report.MarkdownPath is null ? message : message + Environment.NewLine + $"Report: {report.MarkdownPath}";
+        }
     }
 }

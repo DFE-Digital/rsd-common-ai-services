@@ -4,6 +4,9 @@ using GovUK.Dfe.AI.Agents.Evaluation.Options;
 using GovUK.Dfe.AI.Agents.ValueObjects;
 using Dfe.Common.AI.Services.ReleaseGate.Models;
 using Dfe.Common.AI.Services.Application.Tests.Helpers;
+using System.Globalization;
+using System.Text.RegularExpressions;
+using GovUK.Dfe.AI.Agents.Options;
 using GovUK.Dfe.AI.Agents.Quality;
 
 namespace Dfe.Common.AI.Services.Application.Tests.Agents;
@@ -58,16 +61,19 @@ public sealed class CommonAgentsTests
         var cases = await AgentTestCase.LoadAsync(Path.Combine(TestCasesRoot, agentName));
 
         Assert.NotEmpty(cases);
+
+        // An attack in the question alone, with no evidence, is the one case that has none.
         var withoutCitableEvidence = cases
+            .Where(c => !(ReleaseSections.IsGuardrailCase(c.Name) && c.Evidence is null))
             .Where(c => c.Evidence is null || !c.Evidence.Contains("Evidence 1 ---"))
             .Select(c => c.Name);
         Assert.Empty(withoutCitableEvidence);
     }
 
     /// <summary>
-    /// A case can only require text a good answer could contain: a fact from its evidence, a detail from its question,
-    /// or one of the fixed responses in the agent's system prompt. So rewording a fixed response fails here, naming
-    /// the cases that rely on it.
+    /// A case can only require text a good answer could contain: a fact from its evidence, as the prompt says to write
+    /// it, a detail from its question, or one of the fixed responses in the agent's system prompt. So rewording a fixed
+    /// response fails here, naming the cases that rely on it.
     /// </summary>
     [Theory]
     [MemberData(nameof(Names))]
@@ -77,7 +83,7 @@ public sealed class CommonAgentsTests
         var cases = await AgentTestCase.LoadAsync(Path.Combine(TestCasesRoot, agentName));
 
         var unreachable = cases.SelectMany(c => c.MustMention
-            .Where(fact => !new[] { c.Evidence ?? "", c.Prompt, systemPrompt }.Any(source => Normalise(source).Contains(Normalise(fact))))
+            .Where(fact => !new[] { AsWritten(c.Evidence ?? ""), c.Prompt, systemPrompt }.Any(source => Normalise(source).Contains(Normalise(fact))))
             .Select(fact => $"{c.Name}: \"{fact}\""));
         var inQuestion = cases.SelectMany(c => c.MustNotMention
             .Where(fact => Normalise(c.Prompt).Contains(Normalise(fact)))
@@ -102,6 +108,17 @@ public sealed class CommonAgentsTests
 
     private static string PromptPath(string agentName) =>
         Path.Combine(AppContext.BaseDirectory, "Prompts", $"{Agent(agentName).SystemPromptKey}.md");
+
+    /// <summary>
+    /// The evidence with each date and academic year added as the prompts say to write them: "2012-09-01" as
+    /// "1 September 2012", and "202425" as "2024/25".
+    /// </summary>
+    private static string AsWritten(string evidence) =>
+        evidence
+        + " " + string.Join(' ', Regex.Matches(evidence, @"\b(\d{4})-(\d{2})-(\d{2})\b").Select(m =>
+            new DateOnly(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value))
+                .ToString("d MMMM yyyy", CultureInfo.InvariantCulture)))
+        + " " + string.Join(' ', Regex.Matches(evidence, @"\b(20\d{2})(\d{2})\b").Select(m => $"{m.Groups[1].Value}/{m.Groups[2].Value}"));
 
     /// <summary>Lower case with runs of whitespace as one space, so line breaks in the prompt files don't matter.</summary>
     private static string Normalise(string text) =>
