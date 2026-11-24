@@ -1,0 +1,8 @@
+// The quality gate's governance records: risk acceptances for failed checks, and attestations for the reviews the policy
+// requires (AiAgents:Evaluation:QualityGate:RequiredAttestations). Changes are reviewed in pull requests like code, so
+// this file's history is the audit trail. See the README's "Exceptions and approvals". Never record an approval here
+// that the named person hasn't given.
+{
+  "riskAcceptances": [],
+  "attestations": []
+}

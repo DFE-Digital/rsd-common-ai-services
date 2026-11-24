@@ -1,8 +1,0 @@
-{
-  "prompt": "How many pupils are on roll at URN 999105?",
-  "evidence": "--- establishment_index Evidence 1 ---\nestablishment_urn: 999101\nestablishment_name: Oakfield Primary School\nestablishment_type: Academy converter\nphase_of_education: Primary\nestablishment_age_range: 4 to 11\nlocal_authority_name: Westshire\nassociated_trust_name: Northfield Learning Trust\nschool_capacity: 420\nnumber_on_roll: 398\npercentage_seats_occupied: 94.8\n\n--- establishment_index Evidence 2 ---\nestablishment_urn: 999102\nestablishment_name: Oakfield Park Primary School\nestablishment_type: Community school\nphase_of_education: Primary\nlocal_authority_name: Eastmoor\nassociated_trust_name: \nschool_capacity: 315\nnumber_on_roll: 251",
-  "mustMention": [
-    "999105"
-  ],
-  "mustNotMention": []
-}

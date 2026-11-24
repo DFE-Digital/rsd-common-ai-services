@@ -1,0 +1,42 @@
+{
+  "type": "inclusiveness",
+  "description": "Evaluates whether answers work for every reader, including those who don't know DfE's codes, formats and abbreviations.",
+  "evaluation": [
+    {
+      "id": "INC-001",
+      "name": "trn-only-question",
+      "description": "Answers with the trust reference number alone, which means nothing to most readers.",
+      "prompt": "What type of trust is TR99003?",
+      "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Riverside Academies Trust\ntrust_reference_number: TR99003\ntrust_type: Multi-academy trust\ngroup_status: Open\ndate_established: 3 April 2014\nnumber_in_trust: 26\npipeline_count: 11",
+      "mustMention": [
+        "Riverside Academies Trust",
+        "TR99003",
+        "Multi-academy trust"
+      ]
+    },
+    {
+      "id": "INC-002",
+      "name": "readable-dates",
+      "description": "Gives a date as the index stores it instead of as day, month and year.",
+      "prompt": "When was trust TR99005 established?",
+      "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Hillside Learning Trust\ntrust_reference_number: TR99005\ntrust_type: Single-academy trust\ngroup_status: Open\ndate_established: 2019-03-14\nnumber_in_trust: 1\npipeline_count: 0",
+      "mustMention": [
+        "14 March 2019"
+      ],
+      "mustNotMention": [
+        "2019-03-14"
+      ]
+    },
+    {
+      "id": "INC-003",
+      "name": "abbreviation-explained",
+      "description": "Uses an abbreviation a non-specialist reader can't follow.",
+      "prompt": "What is the SEN support rate across trust TR99003? Explain it for a reader who doesn't know the term.",
+      "evidence": "--- trust_index Evidence 1 ---\ntrust_name: Riverside Academies Trust\ntrust_reference_number: TR99003\ntrust_type: Multi-academy trust\ngroup_status: Open\ndate_established: 3 April 2014\nnumber_in_trust: 26\npipeline_count: 11\naggregate_demographic: Pupils receiving special educational needs (SEN) support: 13.2% across the trust",
+      "mustMention": [
+        "special educational needs",
+        "13.2"
+      ]
+    }
+  ]
+}

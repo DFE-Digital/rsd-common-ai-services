@@ -1,5 +1,4 @@
-using Dfe.Common.AI.Services.Application.Constants;
-using GovUK.Dfe.CoreLibs.AiAgents.ValueObjects;
+using GovUK.Dfe.AI.Agents.ValueObjects;
 
 namespace Dfe.Common.AI.Services.Application.Agents;
 
@@ -7,26 +6,25 @@ namespace Dfe.Common.AI.Services.Application.Agents;
 /// Provisioned agents that are common to all DfE's RSD services, with their system prompts and other settings.
 /// </summary>
 /// <remarks>
-/// <see cref="AgentDefinition.RequireCitations"/> and <see cref="AgentDefinition.Validate"/> are applied when an
-/// agent runs, not stored in its Foundry version, so apps that run these agents must use these definitions.
+/// <see cref="AgentDefinition.RequiredCitations"/> and <see cref="AgentDefinition.Validate"/> are applied when an
+/// agent runs, not stored in its Foundry version, so apps that run these agents must use these definitions. An app adds
+/// its own checks with <see cref="AgentChecks.WithCheck"/> or <see cref="AgentChecks.ExpectingMention"/>, never by
+/// replacing <see cref="AgentDefinition.Validate"/>, which would drop the common checks.
 /// </remarks>
 public static class CommonAgents
 {
-    public static AgentDefinition[] All =>
-    [
-        Grounded("rsd-establishment-agent", systemPromptType: "Establishment"),
-        Grounded("rsd-ofsted-agent", systemPromptType: "Ofsted"),
-        Grounded("rsd-trust-agent", systemPromptType: "Trust"),
-    ];
+    /// <summary>Answers questions about schools and other establishments, and their Ofsted inspections.</summary>
+    public static AgentDefinition Establishment => Grounded("rsd-establishment-agent", systemPromptKey: "Establishment");
 
-    /// <summary>An agent that must cite its evidence and can't give an empty answer.</summary>
-    private static AgentDefinition Grounded(string name, string systemPromptType) =>
-        new(name, systemPromptType)
-        {
-            RequireCitations = true,
-            Validate = HasAnswer,
-        };
+    /// <summary>Answers questions about academy trusts and the establishments they run.</summary>
+    public static AgentDefinition Trust => Grounded("rsd-trust-agent", systemPromptKey: "Trust");
 
-    private static string? HasAnswer(AgentResult result) =>
-        string.IsNullOrWhiteSpace(result.Output) ? Messages.AnswerChecks.EmptyAnswer : null;
+    public static AgentDefinition[] All => [Establishment, Trust];
+
+    /// <summary>
+    /// An agent that must cite its evidence (the library's <c>RequiredCitations</c>, on by default), list the sources
+    /// it cited, and can't give an empty answer.
+    /// </summary>
+    private static AgentDefinition Grounded(string name, string systemPromptKey) =>
+        new(name, systemPromptKey) { Validate = AnswerChecks.Check };
 }
